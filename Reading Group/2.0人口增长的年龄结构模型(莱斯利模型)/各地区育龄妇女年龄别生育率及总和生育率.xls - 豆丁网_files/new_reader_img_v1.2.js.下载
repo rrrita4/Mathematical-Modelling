@@ -1,0 +1,4788 @@
+;
+(function (a) {
+	if (typeof define === 'function' && define.amd) {
+		define(['jquery'], a)
+	} else if (typeof exports === 'object') {
+		module.exports = a(require('jquery'))
+	} else {
+		a(jQuery)
+	}
+}(function ($) {
+	if ($.support.cors || !$.ajaxTransport || !window.XDomainRequest) {
+		return $
+	}
+	var n = /^(https?:)?\/\//i;
+	var o = /^get|post$/i;
+	var p = new RegExp('^(\/\/|' + location.protocol + ')', 'i');
+	$.ajaxTransport('* text html xml json', function (j, k, l) {
+		if (!j.crossDomain || !j.async || !o.test(j.type) || !n.test(j.url) || !p.test(j.url)) {
+			return
+		}
+		var m = null;
+		return {
+			send: function (f, g) {
+				var h = '';
+				var i = (k.dataType || '').toLowerCase();
+				m = new XDomainRequest();
+				if (/^\d+$/.test(k.timeout)) {
+					m.timeout = k.timeout
+				}
+				m.ontimeout = function () {
+					g(500, 'timeout')
+				};
+				m.onload = function () {
+					var a = 'Content-Length: ' + m.responseText.length + '\r\nContent-Type: ' + m.contentType;
+					var b = {
+						code: 200,
+						message: 'success'
+					};
+					var c = {
+						text: m.responseText
+					};
+					try {
+						if (i === 'html' || /text\/html/i.test(m.contentType)) {
+							c.html = m.responseText
+						} else if (i === 'json' || (i !== 'text' && /\/json/i.test(m.contentType))) {
+							try {
+								c.json = $.parseJSON(m.responseText)
+							} catch (e) {
+								b.code = 500;
+								b.message = 'parseerror'
+							}
+						} else if (i === 'xml' || (i !== 'text' && /\/xml/i.test(m.contentType))) {
+							var d = new ActiveXObject('Microsoft.XMLDOM');
+							d.async = false;
+							try {
+								d.loadXML(m.responseText)
+							} catch (e) {
+								d = undefined
+							}
+							if (!d || !d.documentElement || d.getElementsByTagName('parsererror').length) {
+								b.code = 500;
+								b.message = 'parseerror';
+								throw 'Invalid XML: ' + m.responseText;
+							}
+							c.xml = d
+						}
+					} catch (parseMessage) {
+						throw parseMessage;
+					} finally {
+						g(b.code, b.message, c, a)
+					}
+				};
+				m.onprogress = function () {};
+				m.onerror = function () {
+					g(500, 'error', {
+						text: m.responseText
+					})
+				};
+				if (k.data) {
+					h = ($.type(k.data) === 'string') ? k.data : $.param(k.data)
+				}
+				m.open(j.type, j.url);
+				m.send(h)
+			},
+			abort: function () {
+				if (m) {
+					m.abort()
+				}
+			}
+		}
+	});
+	return $
+}));
+var log_preNum = 0;
+var toolHeight = 45; //46减去一像素边框
+var scrollFlag = true;
+// 2019-7-12
+var imgCompareWidth = [800, 1130];
+
+var ft = 0;
+var ftup = 0;
+var arrSt = [];
+var pageWidth = 1130,
+	playerWidth = 802;
+var isIe678 = !-[1, ];
+if (typeof endBigScreen != 'undefined' && endBigScreen == true && !isIe678 == true) {
+	var screenWidth = screen.width;
+	if (screenWidth <= 1248) {
+		pageWidth = 980;
+		playerWidth = 652;
+	} else if (screenWidth > 1248 && screenWidth < 1360) {
+		pageWidth = 1130;
+		playerWidth = 802;
+	} else if (screenWidth >= 1360 && screenWidth < 1400) {
+		pageWidth = 1222;
+		playerWidth = 894;
+	} else if (screenWidth >= 1400) {
+		pageWidth = 1273;
+		playerWidth = 944;
+	}
+}
+var setTimer = null;
+if (jQuery(".j_sidercontrol").length > 0 && jQuery("#relative_doc_mod").length > 0) {
+	//var oRelaTop = jQuery(".j_sidercontrol").offset().top;
+	var oRelaTop = jQuery("#relative_doc_mod").offset().top;
+}
+var clip = null;
+var relateDocH = 0;
+var sst = 0;
+
+function DocinReaderPlayer() {
+	if (arguments.length == 1) {
+		var arg = arguments[0];
+	}
+	this.config = {
+		productId: 0,
+		allPage: 0,
+		previewNum: 0,
+		isBuy: 1,
+		baseUrl: "",
+		initZoom: 0,
+		showStyle: 1,
+		contStyle: 1,
+		bookMark: 0,
+		isLogin: 0,
+		bookmarkid: -1,
+		showAd: true,
+		yjAdvStyle: '00',
+		load_url: ""
+	};
+	this.arrSelect = [];
+	// txy
+	this.txtSelect = '';
+
+	for (var p in arg) {
+		this.config[p] = arg[p];
+	}
+	this.screenWidth = window.screen.width;
+	this.btn_comment = jQuery(".j_page_comment");
+	this.btn_upload = jQuery(".page_upload");
+	this.btn_search = jQuery(".page_search");
+	this.btn_bookmark = jQuery("#addBookMark");
+	this.preBtn = jQuery("#preview"),
+		this.nextBtn = jQuery("#nextPage");
+	this.menu = jQuery('.doc_readmod,.reader_menu_more');
+	this.topBtn = jQuery(".top_like");
+	this.hitBtn = jQuery(".step_on");
+	this.zoomFlag = 0;
+	this.curPage = 1;
+	this.myScale = 1;
+	this.flashSize = 1;
+	this.gotoPageInput = jQuery(".page_cur");
+	this.floderBtn = jQuery("#floderbtn");
+	// 2019-7-12
+	this.btn_zoomIn = jQuery("#j_zoomin");
+	this.btn_zoomIn2 = jQuery("#j_zoomin2");
+	this.btn_zoomOut = jQuery("#j_zoomout");
+	this.btn_fullscreen = jQuery(".btn_fullscreen");
+
+	this.adTj = {
+		'1': [923504, 923505, 923506, 923507, 923508],
+		'2': [939345, 939347, 939348, 939349, 939350]
+	};
+	this.iWidth = [playerWidth - 2, pageWidth];
+	// 2019-7-12
+	this.iHeight = [];
+	this.metas = [];
+
+	this.changeHeight = 0;
+	this.imgWidth = 0;
+	if(readerConfig.is_zq == "true"){
+		this.config.allPage = 1;
+	}
+	// this.init();//是图片格式的时候直接初始化
+	if (typeof (isPDF) != 'undefined' && isPDF == 1) {
+		this.pdfData = eval('(' + pdfdata + ')').content.meta;
+	}
+	if (this.config.docstatus == 0) {
+		this.pageScroll(jQuery);
+		this.getMeta();
+	} else {
+		var screenH = jQuery(window).height(),
+			pageOffsetTop = jQuery("#contentcontainer").offset().top;
+		var pageNull = jQuery('<div id="pagenull" class="model panel" style="margin:0;"></div>').appendTo(jQuery("#contentcontainer"));
+		jQuery("#pagenull").css({
+			height: screenH - pageOffsetTop - 50
+		});
+		jQuery("#floderbtn").hide();
+		jQuery(".aside").css({
+			marginTop: 68
+		});
+		if (this.config.docstatus == 1) {
+			var ostatusP = jQuery('<p class="docStatusTips"><span class="txt">文档转换中</span></p>');
+			jQuery(".page_wrap").css("cssText", "marginTop:0px!important;");
+		} else if (this.config.docstatus == 2) {
+			var ostatusP = jQuery('<p class="docStatusTips"><span class="txt">文档审核中</span></p>');
+			jQuery(".page_wrap").css("cssText", "marginTop:0px!important;");
+		} else if (this.config.docstatus == 3) {
+			var ostatusP = jQuery('<p class="docStatusTips convertFailed"><span class="txt">该文档转化失败，<br/>请<a href="javascript:void(0);" onclick="downLoadNew(' + this.config.productId + ',' + "1" + ')">下载</a>后阅读。</span></p>');
+		}
+		ostatusP.appendTo(jQuery("#pagenull"));
+		likeTooModControl(1);
+	}
+}
+DocinReaderPlayer.prototype = {
+	init: function () {
+		var _this = this;
+		_this.getMyScale();
+		_this.createDiv();
+		_this.setBeforeAd(); //前贴片
+		if (typeof (qwpart) != "undefined" && qwpart != 0) {
+			_this.gotoPages(qwpart, 1);
+		}
+		if (typeof (showPageNum) != "undefined") {
+			_this.gotoPages(showPageNum, 1);
+		}
+		_this.getOtherDocs();
+		if (typeof (isCartOrisCode) == "undefined" && (_this.config.isBFD == false || _this.config.isBFD == undefined)) {
+			_this.loadRelative();
+		}
+		if (showComment == "message") {
+			_this.commentHandel();
+		}
+		if ('scrollRestoration' in history) {
+			history.scrollRestoration = 'manual';
+		}
+		//如果书签存在的情况
+		if (_this.config.bookMark > 0 && (typeof (qwpart) != "undefined" && qwpart == 0)) {
+			_this.curPage = _this.config.bookMark;
+			_this.gotoPage(_this.curPage, 1);
+			if (_this.btn_bookmark.find("span").hasClass('iconfont')) {
+				_this.btn_bookmark.find("span").addClass('icontool_bookmark_red').removeClass("icontool_bookmark");
+			}
+			if (_this.btn_bookmark.find("span").hasClass('icons-svg')) {
+				_this.btn_bookmark.find("span").addClass('icons-sprite-icontool_bookmark_red').removeClass("icons-sprite-icontool_bookmark");
+			}
+			jQuery("#bookmarktips p").html('你上次阅读到此页,点击这里返回第1页');
+			jQuery("#bookmarktips").fadeIn().on('click', function () {
+				_this.gotoPage(1, 1);
+			});
+			_this.setBookMark();
+		}
+		// 2019-7-15
+		_this.pageButton(_this.curPage);
+		_this.zoomOut();
+		_this.zoomIn();
+		_this.fullscreen();
+		//_this.oSiderTop = jQuery(".aside").offset().top;
+		if (jQuery(".doc_header_mod .doc_fun_wrap").length > 0) {
+			_this.oSiderTop = jQuery(".doc_header_mod .doc_fun_wrap").offset().top + 60;
+		} else {
+			_this.oSiderTop = jQuery(".head_wrapper").height();
+		}
+		if ((typeof isBuilding != "undefined") && isBuilding == 1) {
+			_this.oSiderTop = jQuery(".aside").offset().top;
+		}
+		_this.setPage(window);
+		_this.initZoom();
+		_this.prePage();
+		_this.nextPage();
+		_this.addBookMark();
+		_this.jumpToPage();
+		_this.readerMenu();
+		_this.tabChangeHand();
+		_this.initComment();
+		_this.handMove();
+		if (readerConfig.getPicStyle == 1) {
+			_this.textSelect();
+		}
+		_this.addFixedBar();
+		jQuery(".page_num").html('/' + _this.config.allPage);
+
+		jQuery(document).on('keydown', function (ev) {
+			if (ev.keyCode == 27 && _this.zoomFlag > 0) {
+				_this.zoomInStyle(0);
+			}
+		});
+		_this.floderBtn.on('click', function () {
+			if (jQuery(this).hasClass('btn_close')) {
+				jQuery('#j_select').removeClass('select_hand_no');
+				if (jQuery('#j_hand').hasClass('temp')) {
+					jQuery('#j_hand').removeClass('temp');
+					jQuery('#j_select').click();
+				}
+				_this.zoomInStyle(0);
+				inpmv(5108);
+			} else {
+				if (jQuery('#j_select').hasClass('btn_cur')) {
+					jQuery('#j_hand').addClass('temp');
+				}
+				jQuery("#j_hand").click();
+				jQuery('#j_select').addClass('select_hand_no');
+				// if (jQuery('#j_comdoc').length > 0) {
+				// 	jQuery('#j_select').show(0);
+				// }
+				jQuery(this).addClass('btn_close');
+				_this.zoomInStyle(1);
+				inpmv(5107);
+			}
+			_this.setBeforeAd();
+		});
+		//分享
+		_this.btn_upload.on('click', function () {
+			_this.openShare(_this.config.productId);
+		});
+		if (jQuery(".new_share_more,.slide-more").length > 0) {
+			jQuery(".new_share_more,.slide-more").on("click", function () {
+				_this.openShare(_this.config.productId);
+			});
+		}
+		//付费阅读购买
+		var oPayBtn = jQuery("#payForRead"),
+			oGotoReadBtn = jQuery("#gotoRead");
+		var oLabel = jQuery('.bd_l label'),
+			oRadio = jQuery('.bd_l :radio');
+		if (oLabel.length > 0) {
+			oLabel.on('click', function () {
+				jQuery(this).parent('p').siblings().find(':radio').attr('checked', false);
+				var thisRadio = jQuery(this).find(':radio');
+				thisRadio.attr('checked', true);
+				if (thisRadio.attr('value') == 'false') {
+					jQuery('#gotoRead').text('充值并购买').attr('title', '充值并购买');
+				} else if (thisRadio.attr('value') == 'true') {
+					jQuery('#gotoRead').text('确定，继续阅读').attr('title', '确定，继续阅读');
+				}
+			});
+		}
+		if (oGotoReadBtn.length > 0) {
+			oGotoReadBtn.bind('click', function () {
+				var choseRadio = jQuery('.bd_l :radio[checked=checked]').attr('rtype');
+				if ((typeof choseRadio != "undefined") && choseRadio != 'payread') {
+					purchaseDownProduct(js_pid, tmp_userId, 'down', 1);
+				} else {
+					purchaseProduct(js_pid, tmp_userId, 'buy', 1);
+				}
+
+			});
+		}
+		if (oPayBtn.length > 0) {
+			oPayBtn.bind('click', function () {
+				var choseRadio = jQuery('.bd_l :radio[checked=checked]').attr('rtype');
+				if ((typeof choseRadio != "undefined") && choseRadio != 'payread') { //付费阅读
+					clickPayRead_v2(_this.config.productId, tmp_userId, 2);
+				} else { //付费阅读+下载
+					clickPayRead_v2(_this.config.productId, tmp_userId, 1);
+				}
+			});
+		}
+		_this.gotoPageInput.focusin(function () {
+			jQuery(this).select();
+		});
+		jQuery("#bookmarktips .close").bind('click', function (event) {
+			jQuery("#bookmarktips").fadeOut();
+			event.stopPropagation();
+		});
+		jQuery("div[id^='img_']").bind("contextmenu", function () {
+			return false;
+		});
+		jQuery("div[id^='img_']").keydown(function () {
+			return key(arguments[0])
+		});
+		if (typeof (isDocer) != "undefined") {
+			jQuery("#j_select").addClass("tool_disabled");
+		}
+		// 不判断是否是HTML版，直接出发箭头的点击事件
+		// jQuery("#j_select").click();
+	},
+	// 2019-7-12
+	setImgWidth: function (f) {
+		var _this = this;
+		if (f == 2) {
+			imgCompareWidth[2] = jQuery(window).width();
+			previewWidth[2] = jQuery(window).width();
+		}
+		if (_this.config.filesize < imgCompareWidth[f]) {
+			jQuery(".reader_container").addClass('wjm_img');
+		} else {
+			jQuery(".reader_container").removeClass('wjm_img');
+		}
+		if (jQuery(".preview_end").length > 0) {
+
+			jQuery(".preview_end").css({
+				width: previewWidth[f]
+			});
+		}
+	},
+	commentHandel: function () {
+		var _this = this;
+		jQuery.ajax({
+			url: '/jsp_cn/productEnd/load/doc_end_load_comment.jsp',
+			data: 'isLogin=' + _this.config.isLogin,
+			context: document.body,
+			success: function (data) {
+				var oHtml = data;
+				jQuery(this).append(oHtml);
+				var cH = jQuery(window).height();
+				var oCommentHeight = cH - cH * 0.2 - 142;
+				jQuery("#showMsgContent").height(oCommentHeight);
+				dialogBoxShadow();
+				setObjCenter('j_comment');
+				showMessageContent();
+				var oTextArea = jQuery("#message");
+				oYzm = jQuery("#checkout");
+				if (oTextArea.length == 0) {
+					return;
+				}
+				oTextArea.bind('keydown', function (event) {
+					if (event.ctrlKey && event.keyCode == 13) {
+						insertUserMessage(1);
+					}
+				});
+				if (oYzm.length > 0) {
+					oYzm.bind('keydown', function (event) {
+						if (event.ctrlKey && event.keyCode == 13) {
+							insertUserMessage(1);
+						}
+					});
+				}
+				oTextArea.bind('focus', function () {
+					showCheckCode();
+				});
+				jQuery('textarea[placeholder]').placeholder();
+				oTextArea.focus();
+			}
+		});
+	},
+	tabInit: function () {
+		var _this = this;
+		_this.createDiv();
+		if (_this.config.showStyle == 1) {
+			_this.setZoomFlashSize(_this.zoomFlag);
+			// if (_this.zoomFlag == 0) {
+			// 	jQuery("#contentcontainer").css('paddingTop', 0);
+			// }
+			jQuery(".reader_container,#contentcontainer").css('height', 'auto');
+			if (jQuery(".recommed_shadow").length > 0 && jQuery(".recommedMod").length > 0) {
+				jQuery(".recommed_shadow,.recommedMod").hide();
+			}
+		}
+		_this.setPage(window);
+		if (_this.config.showStyle == 2) {
+			_this.cursorPage();
+			if (_this.zoomFlag == 0 || _this.zoomFlag == 1) {
+				if (typeof fromWebSearch != "undefined") {
+					fromWebSearch();
+				}
+			}
+		}
+		if (_this.zoomFlag == 1 || _this.zoomFlag == 2 || _this.zoomFlag == 3) {
+			//setToolBarFix(2);
+			siderFixedMove(2);
+			//jQuery("#contentcontainer").css('paddingTop', toolHeight);
+		}
+		jQuery(document).bind('keydown', function (ev) {
+			if (ev.keyCode == 27 && _this.zoomFlag > 0) {
+				_this.zoomInStyle(0);
+			}
+		});
+		log_preNum = 0;
+		_this.gotoPage(_this.curPage, 1);
+		if (_this.config.showStyle == 1) {
+			jQuery(".scrollLoading").scrollLoading();
+		}
+		if ((_this.zoomFlag == 2 && _this.config.showStyle == 2) || (_this.zoomFlag == 3 && _this.config.showStyle == 2)) {
+			if (jQuery(".backToTop").length > 0) {
+				jQuery(".backToTop").hide();
+			}
+		} else {
+			setBarPosition();
+		}
+		_this.zoomInStyle(_this.zoomFlag);
+		_this.hideSelected();
+	},
+	addFixedBar: function () {
+		var _this = this;
+		if (jQuery(".reader_tools_bar_wrap").length > 0) {
+			var oToolsbar = jQuery(".reader_tools_bar_wrap");
+			var oBotDownloadDiv, oBotPot = 0;
+			var tempAddHeight = 0;
+			var j_isendHeight = 0;
+			var marginTop = 0;
+
+			function baseTop() {
+				if (jQuery("#j_isend .down_btns").length > 0 && jQuery("#j_isend .down_btns").is(":visible")) {
+					var oBotDownloadDiv = jQuery("#j_isend .down_btns");
+					marginTop = '-69px';
+					tempAddHeight = jQuery("#j_isend .down_btns").outerHeight();
+				} else if (jQuery(".reader_container .preview_end").length > 0 && jQuery(".reader_container .preview_end").is(":visible")) {
+					var oBotDownloadDiv = jQuery(".reader_container .preview_end");
+				} else if (jQuery(".no_more_mod_yl").length > 0 && jQuery(".no_more_mod_yl").is(":visible")) {
+					var oBotDownloadDiv = jQuery(".no_more_mod_yl");
+				} else if (jQuery("#jControlDiv").length > 0 && jQuery("#jControlDiv").is(":visible")) {
+					var oBotDownloadDiv = jQuery("#jControlDiv");
+				} else if (jQuery("#jControlDivRecomm").length > 0 && jQuery("#jControlDivRecomm").is(":visible")) {
+					var oBotDownloadDiv = jQuery("#jControlDivRecomm");
+				} else if (jQuery('#jUselessDiv').length > 0 && jQuery('#jUselessDiv').is(":visible")) {
+					var oBotDownloadDiv = jQuery('#jUselessDiv');
+				}
+				return oBotDownloadDiv;
+			}
+
+			function fixedBarHandel() {
+				if (iscanread == 0 && readerConfig.previewNum == 0) {
+					oToolsbar.hide();
+					return false;
+				}
+				var curPageHeight = jQuery(window).scrollTop() + jQuery(window).height();
+				if (baseTop() == undefined) {
+					return false;
+				}
+				if ((typeof isBuilding != "undefined") && isBuilding == 1) {} else {
+					oBotPot = baseTop().offset().top;
+					if (curPageHeight >= oBotPot + tempAddHeight) {
+						if (typeof (iscanread) != "undefined" && iscanread == 1) {
+							jQuery(".reader_bottom_tools").hide();
+						}
+					} else {
+						if (typeof (iscanread) != "undefined" && iscanread == 1) {
+							jQuery(".reader_bottom_tools").show();
+						}
+					}
+				}
+
+				if (jQuery("#j_isend .down_btns").length > 0 && jQuery("#j_isend .down_btns").is(":visible")) {
+					j_isendHeight = jQuery("#j_isend").offset().top + jQuery("#j_isend").outerHeight();
+				} else {
+					j_isendHeight = baseTop().offset().top + 1;
+					if ((typeof isBuilding != "undefined") && isBuilding == 1) {
+						j_isendHeight = baseTop().offset().top + 1;
+					}
+				}
+				if (curPageHeight >= j_isendHeight) {
+					if (_this.zoomFlag < 2) {
+						oToolsbar.css({
+							"position": "relative",
+							"marginTop": marginTop
+						});
+					}
+					if (_this.config.showStyle == 2 && _this.zoomFlag == 2) {
+						oToolsbar.css({
+							"position": "fixed",
+							"marginTop": marginTop
+						});
+					}
+					if (readerConfig.is_zq != undefined && readerConfig.is_zq == "true") {
+						oToolsbar.hide();
+					}
+				} else {
+					oToolsbar.css({
+						"position": "fixed",
+						"marginTop": "0"
+					});
+					if (readerConfig.is_zq != undefined && readerConfig.is_zq == "true") {
+						oToolsbar.show();
+					}
+				}
+			}
+			jQuery(window).off("scroll", fixedBarHandel);
+			jQuery(window).on("scroll", fixedBarHandel);
+			if (iscanread == 0 && readerConfig.previewNum == 0) {
+				oToolsbar.css({
+					"position": "relative",
+					"marginTop": "-69px"
+				});
+			} else {
+				oToolsbar.css({
+					"position": "fixed",
+					"marginTop": "0"
+				});
+			}
+		}
+	},
+	initComment: function () {
+		var _this = this;
+		jQuery(".j_page_comment,#showComm").bind('click', function () {
+			if (jQuery("#jCommentDiv").length > 0) {
+				var iCommentTop = jQuery("#jCommentDiv").offset().top;
+				jQuery(window).scrollTop(iCommentTop);
+			} else {
+				_this.commentHandel();
+			}
+		});
+	},
+	openShare: function (pid) {
+		var popTmp = jQuery("#docinPopBox1");
+		if (popTmp.length > 0) {
+			dialogBoxShadow();
+			setObjCenter('docinPopBox1');
+			docinCopyData('docUrl', 'textUrl', 1);
+			docinCopyData('flashUrl', 'flUrl', 1);
+			docinCopyData('embedTxt', 'endShareCode', 1);
+			shareFlag = 1; //分享复制初始化标志
+		}
+	},
+	getMyScale: function () {
+		var _this = this;
+		_this.myScale = (_this.metas[0] / _this.metas[1]).toFixed(4);
+		if (readerConfig.getPicStyle == 2) {
+			var iTempWidth = playerWidth - 2;
+			var iTempHeight = parseInt(iTempWidth / _this.myScale);
+			_this.metas[0] = iTempWidth;
+			_this.metas[1] = iTempHeight;
+		}
+	},
+	// 2019-7-12
+	setZoomFlashSize: function (iZoom) {
+		var _this = this;
+		var aFlash = jQuery("#contentcontainer .panel_inner");
+
+		if (_this.screenWidth <= 1280) {
+			_this.iWidth[2] = 1240;
+			_this.iWidth[3] = 1695;
+		} else if (_this.screenWidth > 1280) {
+			_this.iWidth[2] = _this.screenWidth - 40;
+			_this.iWidth[3] = _this.screenWidth * 1.5;
+		} else if (_this.screenWidth > 2560) {
+			_this.iWidth[2] = 2520;
+			_this.iWidth[3] = 3840;
+		}
+		jQuery.each(aFlash, function (i) {
+			var zoomHeight = parseInt(_this.iWidth[iZoom] / _this.myScale);
+			_this.iHeight[iZoom] = zoomHeight;
+			_this.changeHeight = zoomHeight;
+
+			jQuery(this).css({
+				width: _this.iWidth[iZoom],
+				height: zoomHeight
+			});
+		});
+		if (iZoom == 3) {
+			var sl = (_this.iWidth[3] - jQuery(window).width()) / 2;
+			jQuery(window).scrollLeft(sl);
+		}
+	},
+	clearFlash: function (pageno) {
+		var _this = this;
+		_this.curPage = pageno;
+		var aPages = jQuery("#contentcontainer .panel");
+		jQuery.each(aPages, function (i) {
+			var tempI = i + 1;
+			if (tempI == pageno) {
+				return true;
+			}
+			if (tempI == pageno + 1) {
+				return true;
+			}
+			if (tempI == pageno - 1) {
+				return true;
+			}
+			jQuery(this).find("#img_" + (i + 1)).html("");
+		});
+	},
+	addFlash: function (pageno) {
+		var _this = this;
+		for (var p = pageno; p <= pageno + 1; p++) {
+			if (p != 0 && jQuery("div#img_" + p).length > 0 && jQuery("div#img_" + p).html() == "") {
+				var sid = "";
+				if (typeof (readerConfig.flash_param_hzq) != "undefined") {
+					sid = readerConfig.flash_param_hzq;
+				}
+				if (readerConfig.getPicStyle == 1) {
+					_this.loadIMG2(p);
+				} else if (readerConfig.getPicStyle == 2) {
+					_this.loadIMG(p);
+				}
+
+			}
+		}
+	},
+	//重点保护对象！
+	loadIMG: function (pageno) {
+		var _this = this;
+		var tempUrl = '';
+		if (window.devicePixelRatio == 1) {
+			// 如果不是
+			tempUrl = playerWidth - 2;
+		} else { // 如果是retina
+			var oCookieLast = "";
+			var cookieId = getCookie2008_1('docin_session_id');
+			if (cookieId != "" && cookieId != null) {
+				oCookieLast = parseInt(cookieId.substr(-1));
+			}
+			if (oCookieLast == 0) {
+				var curGeshi = jQuery(".doc_header_mod h1 .ico_2").attr("title"); //ppt pot dps dpt pps ppsx
+				if (curGeshi == "ppt" || curGeshi == "pot" || curGeshi == "dps" || curGeshi == "dpt" || curGeshi == "pps" || curGeshi == "ppsx") {
+					tempUrl = 1000;
+				} else {
+					tempUrl = 1500;
+				}
+			} else if (oCookieLast == 1) {
+				tempUrl = 1000;
+			} else {
+				tempUrl = 1000;
+			}
+
+		}
+		_this.imgWidth = playerWidth - 2;
+		if (typeof (isDocer) == "undefined") {
+			var img = 'https://docimg1.docin.com/docinpic.jsp?file=' + _this.config.productId + '&width=' + tempUrl + '&sid=' + readerConfig.flash_param_hzq + '&pageno=' + pageno + '&pcimg=1';
+			jQuery("#img_" + pageno).html('<img src="' + img + '">');
+		} else {
+			var img = 'https://img3.douding.cn/docin_docer_' + _this.config.productId + '_' + pageno + '.jpg';
+			var iWidth = _this.imgWidth;
+			jQuery("#img_" + pageno).html('<img src="' + img + '">');
+			if (_this.config.showStyle == 1) {
+				var curImg = jQuery("#img_" + pageno + " img");
+				var curImgObj = new Image();
+				curImgObj.src = img;
+				curImgObj.onload = function () {
+					var curImgWidth = curImgObj.width;
+					if (curImgWidth >= iWidth) {
+						curImg.css({
+							"width": "100%"
+						});
+					} else {
+						curImg.css("cssText", "width:auto!important");
+					}
+				}
+			}
+
+		}
+
+	},
+	loadIMG2: function (pageno) {
+		var _this = this;
+		var timer = null;
+		var docUrl = hkUrl + '/api/block?id=' + _this.config.productId + '&pn=' + pageno;
+		var tempUrl = '';
+		if (window.devicePixelRatio == 1) {
+			// 如果不是
+			tempUrl = playerWidth - 2;
+		} else {
+			// 如果是retina
+			var oCookieLast = "";
+			var cookieId = getCookie2008_1('docin_session_id');
+			if (cookieId != "" && cookieId != null) {
+				oCookieLast = parseInt(cookieId.substr(-1));
+			}
+			if (oCookieLast == 0) {
+				var curGeshi = jQuery(".doc_header_mod h1 .ico_2").attr("title"); //ppt pot dps dpt pps ppsx
+				if (curGeshi == "ppt" || curGeshi == "pot" || curGeshi == "dps" || curGeshi == "dpt" || curGeshi == "pps" || curGeshi == "ppsx") {
+					tempUrl = 1000;
+				} else {
+					tempUrl = 1500;
+				}
+			} else if (oCookieLast == 1) {
+				tempUrl = 1000;
+			} else {
+				tempUrl = 1000;
+			}
+		}
+		var img = 'https://docimg1.docin.com/docinpic.jsp?file=' + _this.config.productId + '&width=' + tempUrl + '&sid=' + readerConfig.flash_param_hzq + '&pageno=' + pageno + '&pcimg=1';
+		jQuery("#img_" + pageno).html('<img src="' + img + '">');
+		//jQuery("#img_" + pageno).find('img').error(function (res) {
+		// var that = jQuery(this);
+		// clearTimeout(timer);
+		// timer = setTimeout(function () {
+		// 	var imgUrl = 'http://docimg1.docin.com/docinpic.jsp?file=' + _this.config.productId + '&width=1000&sid=' + readerConfig.flash_param_hzq + '&pageno=' + pageno + '&pcimg=1';
+		// 	that.attr('src', imgUrl);
+		// }, 1000)
+		//})
+		jQuery.support.cors = true;
+		jQuery.ajax({
+			type: "GET",
+			url: docUrl,
+			timeout: 3000,
+			contentType: 'text/plain',
+			context: jQuery("#img_" + pageno),
+			dataType: "json",
+			success: function (data, textStatus) {
+				var w = data.width;
+				var h = data.height;
+				var whScale = w / h;
+				var rh = Math.ceil((playerWidth - 2) / whScale);
+				var wScale = w / (playerWidth - 2);
+				var hScale = h / rh;
+				var html = '';
+				for (var n = 0; n < data.blocks.length; n++) {
+					data.blocks[n].text = htmlEncode(data.blocks[n].text);
+					var strId = pageno + '' + n;
+					html += '<div class="t_cover_outer" id="' +
+						strId +
+						'" style="left:0;top:' +
+						Math.ceil(data.blocks[n].block.split(",")[1] / hScale) +
+						'px;height:' +
+						Math.ceil(data.blocks[n].block.split(",")[3] / hScale) +
+						'px;width:100%;"><div class="t_cover" style="left:' +
+						Math.ceil(data.blocks[n].block.split(",")[0] / wScale) +
+						'px;top:0;width:' +
+						Math.ceil(data.blocks[n].block.split(",")[2] / wScale) +
+						'px;height:' +
+						Math.ceil(data.blocks[n].block.split(",")[3] / hScale) +
+						'px;">' +
+						data.blocks[n].text +
+						'</div></div>';
+				}
+				jQuery(this).append(html);
+			},
+			error: function (XMLHttpRequest, textStatus, errorThrown) {},
+			complete: function (XMLHttpRequest, textStatus) {
+				//_this.loadNext();	
+				jQuery(this).parent('.panel_inner').css({
+					'background': 'none'
+				});
+			}
+		});
+	},
+	setLoading: function () {
+		var iPage1Top = Math.ceil(jQuery("#contentcontainer").offset().top);
+		var iViewHeight = jQuery(window).height();
+		var loadingTop = (iViewHeight - iPage1Top) / 2 + "px";
+		jQuery('.reader_container .panel_inner').eq(0).css("backgroundPosition", "center " + loadingTop);
+	},
+	createDiv: function () {
+		var _this = this;
+		if (jQuery("#preview_img").length == 1) {
+			jQuery("#preview_img").remove();
+		}
+		if (typeof (readerConfig) != "undefined" && readerConfig.previewNum == 0 && iscanread == 0 && typeof (isDocer) == "undefined") {
+			var pageDiv = jQuery('<div id="preview_img" class="model panel"><div class="mask_gradient"></div><img src="https://img1.douding.cn/docin_online_doc_one_' + readerConfig.productId + '_1500.jpg" /></div>').appendTo(jQuery("#contentcontainer"));
+			jQuery("#preview_img img").bind("error", function () {
+				jQuery("#preview_img").replaceWith('<div id="preview_none" class="model panel" style="margin-bottom:0;"><p style="font-size:24px;height:48px;line-height:48px;padding-top:130px;color:#707070;text-align:center;">本文内容已设置付费阅读  不提供预览，请购买后查看</p></div>');
+				jQuery("#preview_img img").unbind("error");
+				jQuery.post("/app/p/end/ajax/callOPdeal.do?pid=" + readerConfig.productId);
+			});
+			jQuery(".reader_container .model").css("marginBottom", "0");
+		}
+
+		function createPageDiv(f) {
+			if (jQuery('#j_comdoc').length > 0) {
+				var nComPages = comdocsConf.zhtotal;
+				var sAddToComDoc = '<div class="addcomdocs addcomdocs-on" title="新功能：把任意文档的任何一页加入组合成一个新文档"><span class="comdoc-ico"></span><p>加入我的组合</p></div>',
+					aPages = comdocsConf.zhPages.split(",");
+
+				if (nComPages > 0 && jQuery('#comdoc_num').length != 1) {
+					jQuery('.comdoc_btn_wrap').html(jQuery('.comdoc_btn_wrap').html() + '<em class="comdoc_num" id="comdoc_num">' + nComPages + '</em>');
+				}
+
+				for (var j = 0; j < aPages.length; j++) {
+					if (i == aPages[j]) {
+						sAddToComDoc = '<div class="addcomdocs addcomdocs-off"><span class="comdoc-ico"></span><p>已加入</p></div>';
+					}
+				}
+				if (f == 1) {
+					if (typeof (isBuilding) != "undefined" && readerConfig.isBuildApproved) {
+						var pageDiv = jQuery('<div id="page_' + i + '" class="model panel scrollLoading">' + sAddToComDoc + '<div class="panel_inner"><div id="img_' + i + '" style="position:relative;"></div><div class="jz_watermark"><img src="' + urlPrefix.cdn + '/images_cn/build/jz_watermark_temp.png"/></div></div></div>').appendTo(jQuery("#contentcontainer"));
+					} else {
+						var pageDiv = jQuery('<div id="page_' + i + '" class="model panel scrollLoading">' + sAddToComDoc + '<div class="panel_inner"><div id="img_' + i + '" style="position:relative;"></div></div></div>').appendTo(jQuery("#contentcontainer"));
+					}
+
+					jQuery("#page_" + i + " .panel_inner").css({
+						width: _this.metas[0],
+						height: _this.metas[1]
+					});
+				} else if (f == 2) {
+					if (typeof (isBuilding) != "undefined" && readerConfig.isBuildApproved) {
+						var pageDiv = jQuery('<div style="width:0px;height:0px;" id="page_' + i + '" class="model panel">' + sAddToComDoc + '<div class="panel_inner"><div style="position:relative;"><div id="img_' + i + '"></div><div class="jz_watermark ppt"><img src="' + urlPrefix.cdn + '/images_cn/build/jz_watermark_temp.png" /></div></div></div></div>').appendTo(jQuery("#contentcontainer"));
+					} else {
+						var pageDiv = jQuery('<div style="width:0px;height:0px;" id="page_' + i + '" class="model panel">' + sAddToComDoc + '<div class="panel_inner"><div id="img_' + i + '"></div></div></div>').appendTo(jQuery("#contentcontainer"));
+					}
+				}
+			} else {
+				if (f == 1) {
+					if (typeof (isBuilding) != "undefined" && readerConfig.isBuildApproved) {
+						var pageDiv = jQuery('<div id="page_' + i + '" class="model panel scrollLoading"><div class="panel_inner"><div id="img_' + i + '" style="position:relative;"></div><div class="jz_watermark"><img src="' + urlPrefix.cdn + '/images_cn/build/jz_watermark_temp.png" /></div></div></div>').appendTo(jQuery("#contentcontainer"));
+					} else {
+						var pageDiv = jQuery('<div id="page_' + i + '" class="model panel scrollLoading"><div class="panel_inner"><div id="img_' + i + '" style="position:relative;"></div></div></div>').appendTo(jQuery("#contentcontainer"));
+					}
+
+					jQuery("#page_" + i + " .panel_inner").css({
+						width: _this.metas[0],
+						height: _this.metas[1]
+					});
+					if (readerConfig.ppt_swf_url != undefined && readerConfig.ppt_swf_url != "" && i == 1) {
+						jQuery('<div id="playVideo" style="z-index:3;position: absolute;left: 0;right: 0;top:-200px;bottom: 0;width:160px;height:160px;line-height:160px;margin: auto;cursor: pointer;text-align: center;"><span title="点击可播放" style="display:inline-block;width:66px;height:66px;background-color:rgba(0,0,0,0.5);background-image:url(' + picture_image_path_v1 + '/images_cn/news/html_reader/ctrl-big-play.png);background-position:26px center;background-repeat:no-repeat;background-size:22px auto;border-radius:66px;vertical-align:middle;"></span></div>').appendTo(jQuery("#page_1 .panel_inner"));
+						jQuery('<div id="videoProgress" style="height:42px;background:#000 url(' + picture_image_path_v1 + '/images_cn/news/html_reader/video_progress.png) 0 0 no-repeat;background-size:auto 42px;"><div id="playButton2" title="点击可播放" style="position:relative;z-index:3;width:71%;height:42px;cursor:pointer;"></div></div>').appendTo(jQuery("#page_1 .panel_inner"));
+						jQuery("#page_1 .panel_inner").css("minHeight", "auto");
+						if (typeof (isAdvShow) != "undefined" && isAdvShow == "true") {
+							jQuery("#videoProgress").css("marginBottom", "10px");
+						}
+						if (jQuery("#playVideo").length > 0) {
+							jQuery("#playVideo,#playButton2").off("click").on("click", function () {
+								jQuery("#img_1,#videoProgress").hide();
+								inpmv(7685);
+								if (jQuery("#video").length > 0) {
+									jQuery("#video").show();
+									jQuery("#video").get(0).play();
+									return;
+								}
+
+								jQuery('<video id="video" src="' + readerConfig.ppt_swf_url + '" style="width:100%;position:relative;vertical-align:middle;z-index:4;" controls="controls" autoplay="autoplay"></video>').appendTo(jQuery("#page_1 .panel_inner"));
+								if (typeof (isAdvShow) != "undefined" && isAdvShow == "true") {
+									jQuery("#video").css("marginBottom", "10px");
+								}
+								var elevideo = document.getElementById("video");
+								elevideo.addEventListener('ended', function () { //结束
+									jQuery("#img_1,#videoProgress").show();
+									jQuery("#video").hide();
+								}, false);
+
+								return false;
+							});
+						}
+
+					}
+				} else if (f == 2) {
+					if (typeof (isBuilding) != "undefined" && readerConfig.isBuildApproved) {
+						var pageDiv = jQuery('<div style="width:0px;height:0px;" id="page_' + i + '" class="model panel"><div class="panel_inner"><div style="position:relative;"><div id="img_' + i + '"></div><div class="jz_watermark ppt"><img src="' + urlPrefix.cdn + '/images_cn/build/jz_watermark_temp.png" /></div></div></div></div>').appendTo(jQuery("#contentcontainer"));
+					} else {
+						var pageDiv = jQuery('<div style="width:0px;height:0px;" id="page_' + i + '" class="model panel"><div class="panel_inner"><div id="img_' + i + '"></div></div></div>').appendTo(jQuery("#contentcontainer"));
+					}
+				}
+			}
+		}
+		if (_this.config.showStyle == 1) { //1：竖版 2：横版
+			if (_this.config.isBuy == 1) { //已付费
+				jQuery("#contentcontainer").html("");
+				var createNum = _this.config.allPage;
+				for (var i = 1; i <= createNum; i++) {
+					createPageDiv(1);
+					if (i == 1) {
+						_this.setLoading();
+					}
+				}
+				if(readerConfig.is_zq == "true"){
+					jQuery('<div style="position:absolute;left:0;right:0;bottom:0;z-index:2;height: 35%;overflow:hidden;background-image:-webkit-linear-gradient(270deg,rgba(255,255,255,0) 0,rgba(255,255,255,.84) 42%,#fff 81%,#fff 100%);background-image:linear-gradient(-180deg,rgba(255,255,255,0) 0,rgba(255,255,255,.84) 42%,#fff 81%,#fff 100%);"><div style="text-align:center;padding-top:26%;/* margin-bottom:15px; */"><p style="font-size:18px;color:#222;margin-bottom: 15px;">下载文档 , 获取原文内容</p><div><a onclick="javascript:clickDownload('+readerConfig.productId+',\'\');return false;" href="javascript:void(0)" class="ico_button orange purchase" style="width:170px;height:40px;line-height:40px;border-radius:4px;font-size:18px;padding:0;" onmousedown="return inpmv(7840);">下载文档看全文</a></div></div></div>').appendTo(jQuery("#page_1 .panel_inner"));
+				}
+				jQuery('<div id="moveHandel"></div>').appendTo(jQuery("#contentcontainer"));
+			} else if (_this.config.isBuy == 0 && readerConfig.previewNum != 0) { //未付费，只加载预览页数
+				jQuery("#contentcontainer").html("");
+				var createNum = _this.config.previewNum;
+				for (var i = 1; i <= createNum; i++) {
+					createPageDiv(1);
+				}
+				jQuery('<div id="moveHandel"></div>').appendTo(jQuery("#contentcontainer"));
+			} else if (_this.config.isBuy == 2) { //付费或下载完 加载付费页数
+				for (var i = _this.config.previewNum + 1; i <= _this.config.allPage; i++) {
+					createPageDiv(1);
+					_this.setZoomFlashSize(0);
+					//if(i == 1){_this.setLoading();}
+				}
+				//_this.config.isBuy = 1;
+			}
+			if (jQuery(".preview_end").length > 0) {
+				jQuery(".preview_end").show();
+			}
+
+			if (jQuery("#j_isend").length > 0) {
+				jQuery("#j_isend").show();
+			}
+			if (_this.config.showAd == true) {
+				_this.insertAd(2); //A样式
+			}
+			jQuery(".scrollLoading").scrollLoading();
+			likeTooModControl(1);
+		} else if (_this.config.showStyle == 2) {
+			if (jQuery("#j_isend").length > 0) {
+				jQuery("#j_isend").hide();
+			}
+			if (jQuery(".no_more_mod_yl").length > 0) {
+				jQuery(".no_more_mod_yl").hide();
+			}
+			if (_this.config.isBuy == 1) {
+				jQuery("#contentcontainer").html("");
+				var createNum = _this.config.allPage;
+				for (var i = 1; i <= createNum; i++) {
+					createPageDiv(2);
+				}
+				jQuery("#page_1").removeAttr('style');
+			} else if (_this.config.isBuy == 0) {
+				jQuery("#contentcontainer").html("");
+				var createNum = _this.config.previewNum;
+				for (var i = 1; i <= createNum; i++) {
+					createPageDiv(2)
+				}
+				jQuery("#page_1").removeAttr('style');
+			} else if (_this.config.isBuy == 2) {
+				for (var i = _this.config.previewNum + 1; i <= _this.config.allPage; i++) {
+					createPageDiv(2)
+				}
+				jQuery("#page_" + _this.curPage).removeAttr('style');
+				_this.config.isBuy = 1;
+			}
+			_this.setReaderHeight();
+			_this.addFlash(_this.curPage);
+			_this.clearFlash(_this.curPage);
+			likeTooModControl(1);
+		}
+		//如果是组合文档，绑定事件
+		if(jQuery(".addcomdocs-on").length>0){
+			jQuery(".addcomdocs-on").on('mouseover', function (event) {
+				event.stopPropagation();
+				jQuery(this).addClass('addcomdocs-hover');
+			}).on('mouseout', function (event) {
+				event.stopPropagation();
+				jQuery(this).removeClass('addcomdocs-hover');
+			});
+		}
+		if(jQuery(".addcomdocs").length>0){
+			jQuery(".addcomdocs").off("click").on('click', function (event) {
+				event.stopPropagation();
+				addComDocs(this);
+			});
+		}
+	},
+	setReaderHeight: function () {
+		var _this = this;
+		var st = jQuery(window).scrollTop();
+		var oReaderTop = Math.ceil(jQuery(".reader_container").offset().top),
+			oScreenHeight = jQuery(window).height();
+		var oToolHeight = 0;
+		if ((typeof isBuilding != "undefined") && isBuilding == 1) {
+			oToolHeight = jQuery(".head_wrapper").outerHeight();
+		}
+		if (oReaderTop > 206) {
+			oReaderTop = 206;
+		}
+		if (_this.zoomFlag == 0) {
+			var cH = oScreenHeight - oReaderTop;
+			var docHeight = cH - 2;
+		}
+		if (_this.zoomFlag > 0) {
+			var cH = oScreenHeight;
+			var docHeight = cH - oToolHeight - 2;
+		}
+		if (docHeight < 390) {
+			docHeight = 420;
+		}
+		var cW = jQuery("#contentcontainer").width();
+		var tempWidth = Math.ceil(docHeight * _this.myScale); //如果适高
+		var tempHeight = Math.ceil(cW / _this.myScale); //如果适宽
+		if (_this.zoomFlag > 1 && typeof isBuilding == "undefined") {
+
+		}
+		if (tempWidth > cW) { //按照宽来
+			if (_this.zoomFlag == 0) {
+				jQuery(".reader_container,#contentcontainer").css('height', tempHeight);
+				jQuery(".panel_inner").css({
+					width: cW,
+					height: tempHeight
+				});
+			} else if (_this.zoomFlag == 1) {
+				jQuery(".reader_container,#contentcontainer").css('height', tempHeight);
+				jQuery(".panel_inner").css({
+					width: cW,
+					height: tempHeight
+				});
+				//jQuery("#contentcontainer").css('paddingTop', oToolHeight);
+			} else {
+				jQuery(".reader_container,#contentcontainer").css('height', cH - 2);
+				jQuery(".panel_inner").css({
+					width: cW,
+					height: tempHeight
+				});
+				// var mart = Math.floor(cH - tempHeight) / 2;
+				// jQuery("#contentcontainer").css('paddingTop', mart);
+			}
+		} else { //按照高来
+			jQuery(".panel_inner").css({
+				width: tempWidth,
+				height: docHeight
+			});
+			if (_this.zoomFlag == 0) {
+				jQuery(".reader_container,#contentcontainer").css('height', docHeight);
+				//jQuery("#contentcontainer").css('paddingTop', 0);
+			} else if (_this.zoomFlag == 1) {
+				//jQuery(".reader_container").css('height', cH - 2);
+				jQuery(".reader_container,#contentcontainer").css('height', docHeight);
+				//jQuery("#contentcontainer").css('paddingTop', oToolHeight);
+			} else {
+				jQuery(".reader_container,#contentcontainer").css('height', cH - 2);
+			}
+		}
+	},
+	cursorPage: function () {
+		//判断鼠标的位置
+		var _this = this;
+		var oMaskLeft = jQuery("#maskLeft"),
+			oMaskRight = jQuery("#maskRight");
+
+		oMaskLeft.bind('mouseover', function (event) {
+			oMaskLeft.css({
+				cursor: 'url(' + picture_image_path_v1 + '/images_cn/news/html_reader/arr_left.cur),auto'
+			});
+		});
+		oMaskRight.bind('mouseover', function (event) {
+			oMaskRight.css({
+				cursor: 'url(' + picture_image_path_v1 + '/images_cn/news/html_reader/arr_right.cur),auto'
+			});
+		});
+		oMaskLeft.unbind('click');
+		oMaskLeft.bind('click', function () {
+			_this.preBtn.triggerHandler("click");
+		});
+		oMaskRight.unbind('click');
+		oMaskRight.bind('click', function () {
+			_this.nextBtn.triggerHandler("click");
+		});
+		jQuery(document).unbind("keydown");
+		jQuery(document).bind("keydown", function (event) {
+			if (_this.config.showStyle == 2) {
+				_this.tabKeyPage(event);
+			}
+		});
+	},
+	tabKeyPage: function (event) {
+		var _this = this;
+		var oKey = event.keyCode;
+		if (oKey == 37) {
+			_this.preBtn.triggerHandler("click");
+			inpmv(5464);
+			return;
+		}
+		if (oKey == 39) {
+			_this.nextBtn.triggerHandler("click");
+			inpmv(5466);
+			return;
+		}
+	},
+	//通过第一张图片获取高并赋值
+	getMeta: function () {
+		var _this = this;
+		if (readerConfig.getPicStyle == 1) {
+			jQuery.ajax({
+				url: hkUrl + '/api/block?id=' + _this.config.productId + '&pn=1',
+				timeout: 3000,
+				success: function (data) {
+					//console.log('成功获取到！');
+					_this.metas.push(data.width);
+					_this.metas.push(data.height);
+					_this.init();
+				},
+				error: function () {
+					//console.log('初始化没有获取到值');
+					_this.init();
+				}
+			});
+		} else if (readerConfig.getPicStyle == 2) {
+			if (typeof (isDocer) == "undefined") {
+				var metaBaseUrl = 'https://page.douding.cn/docinfile2/meta_' + _this.config.productId + '_';
+				jQuery.ajax({
+					type: 'GET',
+					url: metaBaseUrl + '0.docin',
+					dataType: 'jsonp',
+					success: function (data) {
+						_this.metas.push(data.width);
+						_this.metas.push(data.height);
+						_this.init();
+					},
+					error: function () {
+						//倒霉，没有获取到
+						_this.init();
+					}
+				});
+			} else {
+				var oImgObj = new Image();
+				oImgObj.src = "https://img3.douding.cn/docin_docer_" + _this.config.productId + "_1.jpg";
+				oImgObj.onload = function () {
+					_this.metas.push(oImgObj.width);
+					_this.metas.push(oImgObj.height);
+					_this.init();
+				}
+
+			}
+
+		}
+	},
+	initZoom: function () {
+		var _this = this;
+		if (this.config.initZoom == 1) {
+			_this.zoomInStyle(1);
+		} else if (this.config.initZoom == 2) {
+			_this.zoomInStyle(2);
+		} else if (this.config.initZoom == 0) {
+			_this.zoomInStyle(0);
+		}
+	},
+	fullscreen: function () {
+		var _this = this;
+		_this.btn_fullscreen.on('click', function () {
+			if (jQuery(this).hasClass('build_disabled')) {
+				return;
+			}
+			if (jQuery('#j_select').hasClass('tool_select_active')) {
+				jQuery('#j_hand').addClass('temp');
+			}
+			jQuery("#j_hand").trigger("click");
+			//jQuery('#j_select').addClass('select_hand_no');//tool_disabled
+			jQuery('#j_select').addClass('tool_disabled'); //tool_disabled
+			if (jQuery('#j_comdoc').length > 0) {
+				jQuery('#j_select').show();
+			}
+			if (jQuery(this).hasClass('q')) { //正在全屏,点击退出
+				_this.zoomInStyle(0);
+				if (jQuery(".backToTop").length > 0) {
+					jQuery(".backToTop").show();
+					jQuery(".backToTop").css({
+						"opacity": 1,
+						"zIndex": 102
+					});
+				}
+				inpmv(5118);
+			} else {
+				_this.zoomInStyle(2);
+				_this.floderBtn.hide();
+				inpmv(5070);
+			}
+		});
+	},
+	// 2019-7-12
+	escapeFullScreen: function () {
+		var _this = this;
+		jQuery('#j_select').removeClass('tool_disabled');
+		if (jQuery('#j_hand').hasClass('temp')) {
+			jQuery('#j_hand').removeClass('temp');
+			jQuery('#j_select').trigger("click");
+		}
+		_this.zoomFlag = 0;
+		jQuery(".page_body").removeClass('full_2');
+		jQuery(".page_body").removeClass('full_3'); //退出大全屏
+		jQuery(".main").removeClass('full_1');
+		_this.btn_zoomOut.addClass('tool_disabled');
+		_this.controlSomeDiv(1);
+		_this.btn_fullscreen.removeClass('q');
+		_this.btn_fullscreen.html('全屏');
+		_this.btn_zoomIn.removeClass('tool_disabled');
+		if (_this.config.showStyle == 1) {
+			_this.setZoomFlashSize(0);
+		}
+		if (_this.config.showStyle == 2) {
+			_this.setReaderHeight();
+		}
+		_this.gotoPage(_this.curPage);
+		if (jQuery(".w100").length > 0) {
+			jQuery(".w100").show();
+		}
+		_this.floderBtn.show().removeClass('btn_close');
+		if (jQuery(".backToTop").length > 0) {
+			jQuery(".backToTop").show();
+			jQuery(".backToTop").css({
+				"opacity": 1,
+				"zIndex": 102
+			});
+		}
+		_this.btn_zoomIn2.removeClass("tool_disabled");
+		if (_this.btn_zoomIn2.find("span").hasClass('iconfont')){
+			_this.btn_zoomIn2.find("span").removeClass("icontool_minus").addClass("icontool_add");
+		}
+		if (_this.btn_zoomIn2.find("span").hasClass('icons-svg')){
+			_this.btn_zoomIn2.find("span").removeClass("icons-sprite-icontool_reduce").addClass("icons-sprite-icontool_add");
+		}
+		_this.btn_zoomIn2.data("label", '缩小');
+		if (jQuery(".recommend_fy_hd").length > 0) {
+			jQuery(".recommend_fy_hd").css({
+				'position': 'absolute',
+				'top': 40
+			});
+			if (_this.config.showStyle == 2) {
+				jQuery(".j_sidercontrol").show();
+				jQuery("#floderbtn").show();
+			}
+		}
+	},
+	zoomOut: function () {
+		var _this = this;
+		if (_this.btn_zoomOut.length > 0) {
+			_this.btn_zoomOut.on('click', function () {
+				//alert('缩小');
+				if (jQuery(this).hasClass('build_disabled')) {
+					return;
+				}
+				_this.floderBtn.show().removeClass('btn_close');
+				_this.btn_fullscreen.html('全屏');
+				if (_this.zoomFlag == 2) {
+					_this.zoomInStyle(1);
+				} else if (_this.zoomFlag == 1) {
+					jQuery('#j_select').removeClass('select_hand_no')
+					if (jQuery('#j_hand').hasClass('temp')) {
+						jQuery('#j_hand').removeClass('temp');
+						jQuery('#j_select').trigger("click");
+					}
+					_this.zoomInStyle(0);
+				} else if (_this.zoomFlag == 0) {
+					return false;
+				}
+
+			});
+		}
+	},
+	zoomIn: function () {
+		var _this = this;
+		if (_this.btn_zoomIn.length > 0) {
+			_this.btn_zoomIn.on('click', function () {
+				if (jQuery(this).hasClass('build_disabled')) {
+					return;
+				}
+				// if (jQuery('#j_select').hasClass('btn_cur')) {
+				// 	jQuery('#j_hand').addClass('temp');
+				// }
+				// jQuery("#j_hand").click();
+				// jQuery('#j_select').addClass('select_hand_no');
+				if (_this.zoomFlag == 0) {
+					_this.zoomInStyle(1);
+				} else if (_this.zoomFlag == 1) {
+					_this.zoomInStyle(2);
+					_this.floderBtn.hide();
+				} else if (_this.zoomFlag == 2) {
+					return false;
+				}
+			});
+		}
+		if (_this.btn_zoomIn2.length > 0) {
+			_this.btn_zoomIn2.on("click", function () {
+				if (jQuery(this).hasClass('build_disabled')) {
+					return;
+				}
+				if (_this.zoomFlag == 0) {
+					if (jQuery(this).find("span").hasClass("iconfont")) {
+						jQuery(this).find("span").removeClass("icontool_add").addClass("icontool_minus");
+					}
+					if (jQuery(this).find("span").hasClass("icons-svg")) {
+						jQuery(this).find("span").removeClass("icons-sprite-icontool_add").addClass("icons-sprite-icontool_reduce");
+					}
+					jQuery(this).data("label", '缩小');
+					_this.zoomInStyle(1);
+					inpmv(5325);
+				} else if (_this.zoomFlag == 1) {
+					if (jQuery(this).find("span").hasClass("iconfont")) {
+						jQuery(this).find("span").removeClass("icontool_minus").addClass("icontool_add");
+					}
+					if (jQuery(this).find("span").hasClass("icons-svg")) {
+						jQuery(this).find("span").removeClass("icons-sprite-icontool_reduce").addClass("icons-sprite-icontool_add");
+					}
+					jQuery(this).data("label", '放大');
+					_this.zoomInStyle(0);
+					inpmv(5324);
+				}
+
+			});
+		}
+	},
+	zoomInStyle: function (f) {
+		var _this = this;
+
+		if (_this.zoomFlag == 0 && jQuery(window).scrollTop() <= _this.oSiderTop) {
+			_this.temoScale = (jQuery(window).scrollTop() + (jQuery(window).height() / 3) + 166) / jQuery(document).height();
+		} else {
+			_this.temoScale = (jQuery(window).scrollTop() + (jQuery(window).height() / 3)) / jQuery(document).height();
+		}
+		if (_this.config.showStyle == 1) {
+			_this.setZoomFlashSize(f);
+		}
+		if (f == 0) {
+			jQuery(".page_wrap").css({
+				marginTop: 50
+			});
+			if (!window.XMLHttpRequest) {
+				jQuery(".page_wrap").css({
+					marginTop: 0
+				});
+			}
+			_this.escapeFullScreen();
+			if (jQuery(".w100").length > 0) {
+				jQuery(".w100").show();
+			}
+			//setToolBarFix(1);
+			siderFixedMove(1);
+			if (_this.config.showStyle == 2) {
+				jQuery(".main,.tools_bar_small").css({
+					width: playerWidth
+				});
+				_this.setReaderHeight();
+			}
+			likeTooModControl(1);
+			_this.btn_fullscreen.html('全屏').removeClass('q').data("label", '全屏');
+			if (_this.config.showStyle == 1) {
+				jQuery(".main,.tools_bar_small").css({
+					width: playerWidth
+				});
+				jQuery(".panel_inner").css({
+					width: playerWidth - 2
+				});
+				// jQuery("#contentcontainer").css({
+				// 	paddingTop: 0
+				// });
+				if (typeof (isBuilding) != "undefined" || jQuery(".ht-top-head").length == 1) {
+					_this.relativeControl(); //建筑终极页新增代码 合同新增
+				}
+			}
+			if (typeof (isBuilding) != "undefined" || jQuery(".ht-top-head").length == 1) {
+				_this.setFloderBtn(); //建筑新增代码 合同新增
+			}
+			jQuery(".tools_bar_small").css({
+				left: 'auto',
+				right: 'auto'
+			});
+			_this.gotoPage(_this.curPage);
+			setBarPosition();
+			controlLeftBottomAdv(1);
+			_this.btn_zoomIn2.removeClass("tool_disabled");
+			if (_this.btn_zoomIn2.find("span").hasClass('iconfont')) {
+				_this.btn_zoomIn2.find("span").removeClass("icontool_minus").addClass("icontool_add");
+			}
+			if (	_this.btn_zoomIn2.find("span").hasClass('icons-svg')) {
+				_this.btn_zoomIn2.find("span").removeClass("icons-sprite-icontool_reduce").addClass("icons-sprite-icontool_add");
+			}
+			_this.btn_zoomIn2.data("label", '放大');
+			return;
+		}
+		jQuery(".page_wrap").css({
+			marginTop: 0
+		});
+
+		_this.controlSomeDiv(0); //隐藏不需要的div
+		if (f == 1) {
+			_this.zoomFlag = 1;
+			jQuery(".main").addClass('full_1');
+			if (_this.config.showStyle == 1) {
+				jQuery(".full_1,.reader_tools_bar_wrap").css({
+					width: _this.iWidth[1] + 2
+				});
+			}
+			_this.btn_zoomOut.removeClass('tool_disabled');
+			_this.btn_zoomIn.removeClass('tool_disabled');
+			_this.btn_zoomIn2.removeClass("tool_disabled");
+			if (_this.btn_zoomIn2.find("span").hasClass('iconfont')){
+				_this.btn_zoomIn2.find("span").removeClass("icontool_add").addClass("icontool_minus");
+			}
+			if (_this.btn_zoomIn2.find("span").hasClass('icons-svg')) {
+				_this.btn_zoomIn2.find("span").removeClass("icons-sprite-icontool_add").addClass("icons-sprite-icontool_reduce");
+			}
+			_this.btn_zoomIn2.data("label", '缩小');
+			_this.floderBtn.addClass('btn_close').show();
+			_this.btn_fullscreen.html('全屏').removeClass('q').data("label", '全屏');
+			jQuery(".page_body").removeClass('full_2');
+			jQuery(".page_body").removeClass('full_3');
+			jQuery(".tools_bar_small").css({
+				left: 0,
+				right: 0
+			});
+			if (_this.config.showStyle == 2) {
+				setBarPosition();
+				jQuery(".main").css({
+					width: '100%'
+				});
+				jQuery(".full_1,.reader_tools_bar_wrap").css({
+					width: _this.iWidth[1] + 2
+				});
+			}
+			likeTooModControl(1);
+			controlLeftBottomAdv(2);
+
+		}
+		if (f == 2) {
+			_this.zoomFlag = 2;
+			jQuery(".main").addClass('full_1');
+			jQuery(".page_body").addClass('full_2');
+			if (_this.config.showStyle == 1) {
+				// 全屏
+				jQuery(".full_1").css({
+					width: _this.iWidth[2]
+				});
+			}
+			if (_this.config.showStyle == 2) {
+				jQuery(".main").css({
+					width: '100%'
+				});
+			}
+			jQuery(".tools_bar_small").css({
+				left: 0,
+				right: 0
+			});
+			jQuery(".tools_bar_small").css({
+				left: 0,
+				right: 0,
+				width: _this.iWidth[1] + 2
+			});
+			_this.btn_zoomIn.addClass('tool_disabled');
+			_this.btn_zoomOut.removeClass('tool_disabled');
+			_this.floderBtn.hide();
+			_this.btn_fullscreen.html('取消全屏').addClass('q').data("label", '取消全屏');
+			_this.btn_zoomIn2.addClass("tool_disabled");
+			likeTooModControl(2);
+			setTimeout(function () {
+				if (jQuery(".backToTop").length > 0) {
+					jQuery(".backToTop").hide();
+					jQuery(".backToTop").css({
+						"opacity": 0,
+						"zIndex": -1
+					});
+				}
+			}, 200);
+		}
+		if (f == 3) {
+			_this.zoomFlag = 3;
+			jQuery(".main").addClass('full_1');
+			jQuery(".page_body").addClass('full_3');
+			if (_this.config.showStyle == 1) {
+				jQuery(".full_1,.reader_tools_bar_wrap").css({
+					width: _this.iWidth[3]
+				});
+			}
+			if (_this.config.showStyle == 2) {
+				jQuery(".main").css({
+					width: '100%'
+				});
+			}
+			_this.floderBtn.hide();
+			_this.btn_zoomIn.addClass('tool_disabled');
+			_this.btn_zoomOut.removeClass('tool_disabled');
+			likeTooModControl(2);
+		}
+		if (_this.config.showStyle == 2) {
+			_this.setReaderHeight();
+			if (f == 2 || f == 3) {
+				if (jQuery(".backToTop").length > 0) {
+					jQuery(".backToTop").hide();
+				}
+			}
+		} else {
+			setBarPosition();
+		}
+		//jQuery("#contentcontainer").css('paddingTop', toolHeight);
+		//setToolBarFix(2);
+		siderFixedMove(2);
+		_this.addFixedBar();
+		_this.gotoPage(_this.curPage);
+		if (jQuery(".w100").length > 0) {
+			jQuery(".w100").hide();
+		}
+		if (typeof (isBuilding) != "undefined" || jQuery(".ht-top-head").length == 1) {
+			_this.setFloderBtn(); //建筑新增代码 合同新增
+		}
+		if (jQuery(".recommend_fy_hd").length > 0) {
+			jQuery(".recommend_fy_hd").css({
+				'position': 'absolute',
+				'top': 40
+			});
+		}
+	},
+	controlSomeDiv: function (f) {
+		var _this = this;
+		var aDiv = ['.user_doc_mod', '.downloadArea2', '.page_crubms', '.doc_header_mod', '.relative_doc_mod', '.recent_cart_mod', '.recent_doc_mod', '.today_free', '.sider_guanggao', '.sider_guanggao_2', '.col_box', '.j_sidercontrol', '.doc_hd', '.doc_hds', '.spread_mod', '.J_Top', '#docin-global-nav', '.head_wrapper', '.recommend_fy'];
+		if (f == 0) {
+			jQuery.each(aDiv, function (i) {
+				if (jQuery(aDiv[i]).length > 0) {
+					jQuery(aDiv[i]).hide();
+				}
+			})
+		}
+		if (f == 1) {
+			jQuery.each(aDiv, function (i) {
+				if (jQuery(aDiv[i]).length > 0) {
+					jQuery(aDiv[i]).show();
+				}
+			})
+		}
+	},
+	prePage: function () {
+		var _this = this;
+		_this.preBtn.bind('click', function () {
+			if (_this.config.showStyle == 2) {
+				if (_this.flagPage == _this.config.allPage + 1) {
+					_this.curPage = _this.flagPage;
+					_this.flagPage = 0;
+					if (jQuery(".recommed_shadow").length > 0) {
+						jQuery(".recommed_shadow").hide();
+					}
+					if (jQuery(".recommedMod").length > 0) {
+						jQuery(".recommedMod").hide();
+					}
+				}
+			}
+			_this.curPage--;
+			if (_this.curPage < 1) {
+				_this.curPage = 1;
+				return;
+			}
+			_this.gotoPage(_this.curPage, 2);
+			_this.pageButton(_this.curPage);
+
+		});
+	},
+	nextPage: function () {
+		var _this = this;
+		_this.nextBtn.unbind('click');
+		_this.nextBtn.bind('click', function () {
+			_this.curPage++;
+			if (_this.curPage > _this.config.allPage) {
+				_this.curPage = _this.config.allPage;
+				if (_this.config.showStyle == 2) {
+					_this.flagPage = _this.config.allPage + 1;
+					if (jQuery('.recommedMod').length > 0) {
+						jQuery(".recommed_shadow").show();
+						jQuery(".recommedMod").show();
+						if (!window.XMLHttpRequest) {
+							jQuery(".recommed_shadow").height(jQuery("#contentcontainer").height());
+						}
+					} else {
+						jQuery.ajax({
+							url: '/app/p/end/ajax/getLastPageRecommends.do',
+							data: 'productId=' + _this.config.productId,
+							context: jQuery(".doc_reader_mod"),
+							success: function (data) {
+								if (jQuery('.recommedMod').length > 0 && jQuery(".recommed_shadow").length > 0) {
+									return;
+								}
+								var oHtml = data;
+								var oShadow = jQuery('<div class="recommed_shadow"></div>').appendTo(jQuery(this));
+								jQuery(this).append(oHtml);
+								jQuery("#jReview").bind("click", function () {
+									_this.gotoPage(1);
+									_this.pageButton(1);
+									_this.curPage = 1;
+									_this.flagPage = 0;
+									jQuery(".recommed_shadow").hide();
+									jQuery(".recommedMod").hide();
+								});
+								jQuery("#jCloseRecomm").bind("click", function () {
+									_this.preBtn.click();
+								});
+								if (!window.XMLHttpRequest) {
+									jQuery(".recommed_shadow").height(jQuery("#contentcontainer").height());
+								}
+							}
+						});
+					}
+				}
+				return;
+			}
+			_this.gotoPage(_this.curPage, 2);
+			_this.pageButton(_this.curPage);
+		});
+	},
+	gotoPages: function (pageno, k) {
+		var _this = this;
+		if (_this.config.showStyle == 1) {
+			if (_this.config.isBuy == 0) {
+				if (pageno > _this.config.previewNum) {
+					_this.gotoPageInput.val(_this.config.previewNum);
+					jQuery(window).scrollTop(jQuery(document.body).height());
+					return false;
+				}
+			}
+			if (jQuery("#page_" + pageno).length > 0) {
+				if (pageno == 1) {
+					var preTop = jQuery("#page_" + pageno).offset().top;
+					var curObjTop = 0;
+				} else if (pageno == 2) {
+					if (jQuery(window).scrollTop() > _this.oSiderTop) {
+						var curObjTop = jQuery("#page_" + pageno).offset().top - 44;
+					} else {
+						var curObjTop = jQuery("#page_" + pageno).offset().top - 37 - 44;
+					}
+				} else {
+					var preTop = jQuery("#page_" + pageno).offset().top - 37 - 44;
+					var curObjTop = preTop;
+				}
+
+			}
+			if (k && k == 1) {
+				jQuery(window).scrollTop(curObjTop);
+			} else if (k && k == 2) {
+				jQuery("html,body").stop().animate({
+					scrollTop: curObjTop
+				}, 200);
+			} else {
+				if (_this.zoomFlag == 0 && jQuery(window).scrollTop() <= _this.oSiderTop) {
+					var ttt = _this.temoScale * jQuery(document).height() - jQuery(window).height() / 3 - 166;
+				} else {
+					var ttt = _this.temoScale * jQuery(document).height() - jQuery(window).height() / 3;
+				}
+				jQuery(window).scrollTop(ttt);
+			}
+		}
+		if (_this.config.showStyle == 2) {
+			_this.curPage = pageno;
+			if (_this.config.isBuy == 0) {
+				if (pageno > _this.config.previewNum) {
+					_this.gotoPageInput.val(_this.config.previewNum + 1);
+					_this.curPage = _this.config.previewNum + 1;
+					if (jQuery(".preview_end").length > 0) {
+						jQuery(".model").css({
+							width: 0,
+							height: 0
+						});
+						jQuery(".preview_end").show();
+					}
+				} else {
+					if (jQuery(".preview_end").length > 0) {
+						jQuery(".preview_end").hide();
+					}
+					_this.gotoPageInput.val(_this.curPage);
+					_this.addFlash(pageno);
+					_this.clearFlash(pageno);
+					jQuery(".model").css({
+						width: 0,
+						height: 0
+					});
+					jQuery("#page_" + pageno).removeAttr('style');
+					_this.bookMarkShow(pageno);
+					if (!window.XMLHttpRequest) {
+						var w = jQuery("#page_" + pageno).find(".panel_inner").width();
+						var h = jQuery("#page_" + pageno).find(".panel_inner").height();
+						jQuery("#page_" + pageno).css({
+							width: w,
+							height: h
+						});
+					}
+				}
+			} else {
+				_this.gotoPageInput.val(_this.curPage);
+				_this.addFlash(pageno);
+				_this.clearFlash(pageno);
+				jQuery(".model").css({
+					width: 0,
+					height: 0
+				});
+				jQuery("#page_" + pageno).removeAttr('style');
+				_this.bookMarkShow(pageno);
+				if (!window.XMLHttpRequest) {
+					var w = jQuery("#page_" + pageno).find(".panel_inner").width();
+					var h = jQuery("#page_" + pageno).find(".panel_inner").height();
+					jQuery("#page_" + pageno).css({
+						width: w,
+						height: h
+					});
+				}
+			}
+		}
+	},
+	gotoPage: function (pageno, k) {
+		var _this = this;
+		// 列表模式
+		if (_this.config.showStyle == 1) {
+			if (_this.config.isBuy == 0) {
+				if (pageno > _this.config.previewNum) {
+					_this.gotoPageInput.val(_this.config.previewNum);
+					jQuery(window).scrollTop(jQuery(document.body).height());
+					return false;
+				}
+			}
+			if (jQuery("#page_" + pageno).length > 0) {
+				if (pageno == 1) {
+					var preTop = jQuery("#page_" + pageno).offset().top;
+					var curObjTop = 0;
+				} else if (pageno == 2) {
+					if (jQuery(window).scrollTop() > _this.oSiderTop) {
+						var curObjTop = jQuery("#page_" + pageno).offset().top - 44;
+					} else {
+						var curObjTop = jQuery("#page_" + pageno).offset().top - 37 - 44;
+					}
+				} else {
+					var preTop = jQuery("#page_" + pageno).offset().top - 44;
+					var curObjTop = preTop;
+				}
+			}
+			if (k && k == 1) {
+				jQuery(window).scrollTop(curObjTop);
+			} else if (k && k == 2) {
+				jQuery('html,body').stop().animate({
+					scrollTop: curObjTop
+				}, 200);
+
+			} else {
+				if (_this.zoomFlag == 0 && jQuery(window).scrollTop() <= _this.oSiderTop) {
+					var ttt = _this.temoScale * jQuery(document).height() - jQuery(window).height() / 3 - 166;
+				} else {
+					var ttt = _this.temoScale * jQuery(document).height() - jQuery(window).height() / 3;
+				}
+				jQuery(window).scrollTop(ttt);
+			}
+		}
+		// 幻灯片模式
+		if (_this.config.showStyle == 2) {
+			_this.curPage = pageno;
+			if (_this.config.isBuy == 0) {
+				if (pageno > _this.config.previewNum) {
+					_this.gotoPageInput.val(_this.config.previewNum + 1);
+					_this.curPage = _this.config.previewNum + 1;
+					if (jQuery(".preview_end").length > 0) {
+						jQuery(".model").css({
+							width: 0,
+							height: 0
+						});
+						jQuery(".preview_end").show();
+					}
+				} else {
+					if (jQuery(".preview_end").length > 0) {
+						jQuery(".preview_end").hide();
+					}
+					_this.gotoPageInput.val(_this.curPage);
+					_this.addFlash(pageno);
+					_this.clearFlash(pageno);
+					jQuery(".model").css({
+						width: 0,
+						height: 0
+					});
+					jQuery("#page_" + pageno).removeAttr('style');
+					_this.bookMarkShow(pageno);
+					if (!window.XMLHttpRequest) {
+						var w = jQuery("#page_" + pageno).find(".panel_inner").width();
+						var h = jQuery("#page_" + pageno).find(".panel_inner").height();
+						jQuery("#page_" + pageno).css({
+							width: w,
+							height: h
+						});
+					}
+				}
+			} else {
+				_this.gotoPageInput.val(_this.curPage);
+				_this.addFlash(pageno);
+				_this.clearFlash(pageno);
+				jQuery(".model").css({
+					width: 0,
+					height: 0
+				});
+				jQuery("#page_" + pageno).removeAttr('style');
+				_this.bookMarkShow(pageno);
+				if (!window.XMLHttpRequest) {
+					var w = jQuery("#page_" + pageno).find(".panel_inner").width();
+					var h = jQuery("#page_" + pageno).find(".panel_inner").height();
+					jQuery("#page_" + pageno).css({
+						width: w,
+						height: h
+					});
+				}
+			}
+			if (typeof (isPageStat) != "undefined" && isPageStat == "true") {
+				jQuery.post("/jsp_cn/test/collect.jsp", {
+					"user_id": tmp_userId,
+					"pid": product_id,
+					"pageno": _this.curPage,
+					"page_in": new Date().getTime()
+				});
+			}
+		}
+		_this.gotoPageInput.trigger("blur");
+	},
+	pageButton: function (pageno) {
+		var _this = this;
+		if (pageno) {
+			if (_this.config.allPage == 1) {
+				_this.preBtn.removeClass('page_prev').addClass('page_prev_no').removeAttr('title');
+				_this.nextBtn.addClass('page_next').addClass('page_next_no').removeAttr('title');
+
+			} else if (pageno == 1) {
+				_this.preBtn.removeClass('page_prev').addClass('page_prev_no').removeAttr('title');
+				_this.nextBtn.addClass('page_next').removeClass('page_next_no');
+			} else if (pageno == _this.config.allPage) {
+				_this.nextBtn.removeClass('page_next').addClass('page_next_no').removeAttr('title');
+				_this.preBtn.addClass('page_prev').removeClass('page_prev_no');
+			} else {
+				_this.preBtn.addClass('page_prev').removeClass('page_prev_no');
+				_this.nextBtn.addClass('page_next').removeClass('page_next_no');
+			}
+		}
+	},
+	setBookMark: function () {
+		var oTimer = setTimeout(function () {
+			jQuery("#bookmarktips").fadeOut();
+		}, 3000);
+		jQuery("#bookmarktips").bind('mouseover', function () {
+			clearTimeout(oTimer);
+		});
+		jQuery("#bookmarktips").bind('mouseout', function () {
+			oTimer = setTimeout(function () {
+				jQuery("#bookmarktips").fadeOut();
+			}, 3000);
+		});
+	},
+	addBookMark: function () {
+		var _this = this;
+		_this.btn_bookmark.on('click', function () {
+			if (jQuery(this).hasClass('build_disabled')) {
+				return;
+			}
+			if (jQuery(this).find("span.iconfont").hasClass('icontool_bookmark_red') || jQuery(this).find("span.icons-svg").hasClass('icons-sprite-icontool_bookmark_red')) { //取消标签
+				jQuery.post("/app/my/bookself/delbookmark.do", {
+					productid: _this.config.productId,
+					bookmarkid: _this.config.bookmarkid,
+					fromdomain: ""
+				}, function (data) {
+					if (data == 1) {
+						_this.config.bookMark = 0;
+						if (_this.btn_bookmark.find("span").hasClass('iconfont')) {
+							_this.btn_bookmark.find("span").removeClass('icontool_bookmark_red').addClass("icontool_bookmark");
+						}
+						if (_this.btn_bookmark.find("span").hasClass('icons-svg')) {
+							_this.btn_bookmark.find("span").removeClass('icons-sprite-icontool_bookmark_red').addClass("icons-sprite-icontool_bookmark");
+						}
+						jQuery("#bookmarktips p").html('书签已取消');
+						jQuery("#bookmarktips").off("click").fadeIn();
+						_this.setBookMark();
+					}
+				});
+			} else {
+				if (_this.config.isLogin == 0) {
+					showlogin();
+				} else {
+					if (isZuZhi == "1") {
+						mailDialogAlert(login_email, landingEmail, domailUrl);
+						return;
+					}
+					if (jQuery(".nav_reg .bj_sc .ss_bot").length > 0) {
+						var shufangUrl = jQuery(".nav_reg .bj_sc .ss_bot").attr("href");
+					} else {
+						var shufangUrl = 'https://shufang.docin.com/';
+					}
+					jQuery.post("/app/my/bookself/addbookmark.do", {
+						productid: _this.config.productId,
+						bookmarkid: _this.config.bookmarkid,
+						bookmark: _this.curPage,
+						fromdomain: ""
+					}, function (data) {
+						_this.config.bookMark = _this.curPage;
+						readerConfig.bookMark = _this.curPage;
+						if (_this.btn_bookmark.find("span").hasClass('iconfont')) {
+							_this.btn_bookmark.find("span").addClass('icontool_bookmark_red').removeClass("icontool_bookmark");
+						}
+						if (_this.btn_bookmark.find("span").hasClass('icons-svg')) {
+							_this.btn_bookmark.find("span").addClass('icons-sprite-icontool_bookmark_red').removeClass("icons-sprite-icontool_bookmark");
+						}
+						jQuery("#bookmarktips p").html('添加书签成功,可以进入我的书房中查看。<a title="点击查看" target="_blank" href="' + shufangUrl + '">点击查看&gt;&gt;</a>');
+						jQuery("#bookmarktips").off("click").fadeIn();
+						_this.setBookMark();
+						//暂时不知道返回值什么用途 估计没用
+					});
+
+				}
+			}
+		});
+	},
+	bookMarkShow: function (pageno) {
+		var _this = this;
+		if (pageno == _this.config.bookMark) {
+			if (_this.btn_bookmark.find("span").hasClass('iconfont')) {
+				_this.btn_bookmark.find("span").addClass('icontool_bookmark_red').removeClass("icontool_bookmark");
+			}
+			if (_this.btn_bookmark.find("span").hasClass('icons-svg')) {
+				_this.btn_bookmark.find("span").addClass('icons-sprite-icontool_bookmark_red').removeClass("icons-sprite-icontool_bookmark");
+			}
+		} else {
+			if (_this.btn_bookmark.find("span").hasClass('iconfont')) {
+				_this.btn_bookmark.find("span").removeClass('icontool_bookmark_red').addClass("icontool_bookmark");
+			}
+			if (_this.btn_bookmark.find("span").hasClass('icons-svg')) {
+				_this.btn_bookmark.find("span").removeClass('icons-sprite-icontool_bookmark_red').addClass("icons-sprite-icontool_bookmark");
+			}
+		}
+	},
+	jumpToPage: function () {
+		var _this = this;
+		_this.gotoPageInput.on('keydown', function (ev) {
+			if (ev.keyCode == 13) {
+				var curpage = parseInt(jQuery(this).val());
+				if (isNaN(curpage)) {
+					return false;
+				}
+				if (curpage <= 0 || curpage > _this.config.allPage) {
+					return false;
+				}
+				_this.curPage = curpage;
+				_this.pageButton(_this.curPage);
+				_this.gotoPage(_this.curPage, 1);
+				if (jQuery('.recommedMod').length > 0 && _this.config.showStyle == 2) {
+					jQuery(".recommed_shadow").hide();
+					jQuery(".recommedMod").hide();
+				}
+			}
+		});
+	},
+	readerMenu: function () {
+		var _this = this;
+		var menuList = jQuery(".menu_list_wrap");
+		var otime = null;
+		if (menuList.length < 0) {
+			return false;
+		}
+		_this.menu.on('mouseover', function () {
+			clearTimeout(otime);
+			menuList.show();
+		}).on('mouseleave', function () {
+			otime = setTimeout(function () {
+				menuList.hide();
+			}, 100);
+
+		});
+		//菜单功能
+		var oShowInfo = jQuery("#j_showinfo"),
+			oShowAbout = jQuery("#j_about"),
+			oJlist = jQuery("#j_list"),
+			oJpic = jQuery("#j_pic");
+		if (oShowInfo.length > 0) {
+			oShowInfo.on('click', function () {
+				var docInfo = new CreateDocinDialog(showInfoConfig);
+			});
+		}
+		if (oShowAbout.length > 0) {
+			oShowAbout.on('click', function () {
+				var docAbout = new CreateDocinDialog({
+					id: 'docAbout',
+					title: '关于豆丁',
+					button: 2,
+					shadow: 1,
+					content: '<span class="fwb">豆丁网是面向全球的在线C2C文档分享网站。</span><br/>豆丁网(www.docin.com)创立于2008年，致力于打造面向全球的中文社会化阅读平台，为用户提供一切有价值的可阅读之物。经过几年的运营，豆丁网已经成功跻身互联网全球500强，成为提供垂直服务的优秀网站之一。目前豆丁网拥有分类广泛的实用文档、众多出版物、行业研究报告、以及数千位行业名人贡献的专业文件，各类读物总数超过七亿，是面向全球的中文文档库。'
+				});
+			});
+		}
+		if (oJlist.length > 0) {
+			oJlist.on('click', function () {
+				if (jQuery(this).hasClass("cur")) {
+					return;
+				}
+				jQuery(this).addClass("cur");
+				oJpic.removeClass("cur");
+				// jQuery(window).off('resize');
+				// jQuery(window).off('scroll');
+				jQuery("#contentcontainer").html("");
+				_this.config.showStyle = 1;
+				jQuery(".doc_reader_mod").removeClass('style_pic');
+				jQuery("#maskLeft").hide();
+				jQuery("#maskRight").hide();
+				_this.tabInit();
+				//列表模式下手型和复制放开使用
+				if (jQuery("#j_hand").length > 0 && jQuery("#j_select").length > 0) {
+					if (jQuery('#j_hand').hasClass('temp')) {
+						jQuery('#j_hand').removeClass('temp');
+						jQuery('#j_select').trigger("click");
+					}
+					jQuery("#j_hand").removeClass('tool_disabled');
+					jQuery("#j_select").removeClass('tool_disabled');
+					if (jQuery('#j_comdoc').length > 0) {
+						jQuery("#j_hand").show(0);
+						jQuery("#j_select").hide(0);
+					}
+				}
+				if (jQuery(".preview_end").length > 0) {
+					jQuery(".preview_end").show();
+				}
+				_this.addFixedBar();
+				if (typeof (isBuilding) == "undefined" && typeof (is_disease) == "undefined") {
+					if (jQuery('#j_recomm').length == 0) {
+						_this.addRecomm();
+					}
+				}
+				if (typeof (isBuilding) != "undefined" || jQuery(".ht-top-head").length == 1) {
+					_this.relativeControl(); //建筑终极页新增代码 合同新增
+				}
+				inpmv(5114);
+			});
+		}
+		if (oJpic.length > 0) {
+			oJpic.on('click', function () {
+				if (jQuery(this).hasClass("cur")) {
+					return;
+				}
+				//jQuery(window).off('resize');
+				//jQuery(window).off('scroll');
+				jQuery(this).addClass("cur");
+				oJlist.removeClass("cur");
+				jQuery("#contentcontainer").html("");
+				_this.config.showStyle = 2;
+				_this.addFixedBar();
+				if (typeof (isBuilding) == "undefined" && typeof (is_disease) == "undefined") {
+					if (jQuery('#j_recomm').length == 0) {
+						_this.addRecomm();
+					}
+				}
+				if (typeof (isBuilding) != "undefined" || jQuery(".ht-top-head").length == 1) {
+					_this.relativeControl(); //建筑终极页新增代码 合同新增
+				}
+				if (_this.config.showAd) {
+					jQuery(".relative_doc_inner").height("auto");
+				}
+				if (jQuery(".preview_end").length > 0) {
+					jQuery(".preview_end").hide();
+				}
+				jQuery(".doc_reader_mod").addClass('style_pic');
+				jQuery("#maskLeft").show();
+				jQuery("#maskRight").show();
+				_this.tabInit();
+				//ppt模式下手型和复制都无法使用
+				if (jQuery("#j_hand").length > 0 && jQuery("#j_select").length > 0) {
+					if (jQuery('#j_select').hasClass('tool_select_active')) {
+						jQuery('#j_hand').addClass('temp');
+					}
+					jQuery("#j_hand").addClass('tool_disabled');
+					jQuery("#j_select").addClass('tool_disabled');
+					if (jQuery('#j_comdoc').length > 0) {
+						jQuery("#j_hand").hide(0);
+						jQuery("#j_select").show(0);
+					}
+				}
+				siderFixedMove(3);
+				inpmv(5115);
+			});
+		}
+	},
+	insertAd: function (f) {
+		var _this = this;
+		var readerAd1 = jQuery('<div id="ad1" class="adBox"><div class="adInner"><iframe src="/jsp_cn/ad/end_page.jsp?loc=1&pid=' + readerConfig.productId + '" width="760" height="90" scrolling="no" frameborder="0" style="display:block;margin:0 auto;"></iframe><span class="ad_close" title="去除文档页所有广告">VIP去广告<i class="iClose"></i></span></div></div>');
+		var readerAd2 = jQuery('<div id="ad2" class="adBox"><div class="adInner"><iframe src="/jsp_cn/ad/end_page.jsp?loc=2" width="760" height="90" scrolling="no" frameborder="0" style="display:block;margin:0 auto;"></iframe><span class="ad_close" title="去除文档页所有广告">VIP去广告<i class="iClose"></i></span></div></div>');
+		var readerAd3 = jQuery('<div id="ad3" class="adBox"><div class="adInner"><iframe src="/jsp_cn/ad/end_page.jsp?loc=3" width="760" height="90" scrolling="no" frameborder="0" style="display:block;margin:0 auto;"></iframe><span class="ad_close" title="去除文档页所有广告">VIP去广告<i class="iClose"></i></span></div></div>');
+		var readerAd4 = jQuery('<div id="ad4" class="adBox"><div class="adInner"><iframe src="/jsp_cn/ad/end_page.jsp?loc=4" width="760" height="90" scrolling="no" frameborder="0" style="display:block;margin:0 auto;"></iframe><span class="ad_close" title="去除文档页所有广告">VIP去广告<i class="iClose"></i></span></div></div>');
+		var readerAd5 = jQuery('<div id="ad5" class="adBox"><div class="adInner"><iframe src="/jsp_cn/ad/end_page.jsp?loc=5" width="760" height="90" scrolling="no" frameborder="0" style="display:block;margin:0 auto;"></iframe><span class="ad_close" title="去除文档页所有广告">VIP去广告<i class="iClose"></i></span></div></div>');
+		if (f == 1) {
+			//s1 s2
+			if (jQuery("#page_1").length > 0 && jQuery("#ad1").length == 0) {
+				readerAd1.insertAfter(jQuery("#page_1"));
+			}
+			if (jQuery("#page_2").length > 0 && jQuery("#ad2").length == 0) {
+				readerAd2.insertAfter(jQuery("#page_2"));
+			}
+			if (jQuery("#page_4").length > 0 && jQuery("#ad3").length == 0) {
+				readerAd3.insertAfter(jQuery("#page_4"));
+			}
+			if (jQuery("#page_6").length > 0 && jQuery("#ad4").length == 0) {
+				readerAd4.insertAfter(jQuery("#page_6"));
+			}
+			if (jQuery("#page_8").length > 0 && jQuery("#ad5").length == 0) {
+				readerAd5.insertAfter(jQuery("#page_8"));
+			}
+		} else if (f == 2) {
+			//s3 s4
+			if (jQuery("#page_1").length > 0 && jQuery("#ad1").length == 0) {
+				readerAd1.appendTo(jQuery("#page_1"));
+			}
+			if (jQuery("#page_2").length > 0 && jQuery("#ad2").length == 0) {
+				if (_this.config.yjAdvStyle == 0) {
+					readerAd2.appendTo(jQuery("#page_2")); //页内
+				} else if (_this.config.yjAdvStyle == 1) {
+					readerAd2.insertAfter(jQuery("#page_2")); //页外
+				}
+
+			}
+			if (jQuery("#page_4").length > 0 && jQuery("#ad3").length == 0) {
+				readerAd3.appendTo(jQuery("#page_4"));
+			}
+			if (jQuery("#page_6").length > 0 && jQuery("#ad4").length == 0) {
+				readerAd4.appendTo(jQuery("#page_6"));
+			}
+			if (jQuery("#page_8").length > 0 && jQuery("#ad5").length == 0) {
+				readerAd5.appendTo(jQuery("#page_8"));
+			}
+		}
+		jQuery("#contentcontainer .adBox .ad_close").hover(function () {
+			jQuery(".sider_guanggao").addClass("gg_hover");
+			jQuery(".adBox").addClass("adBox_hover");
+		}, function () {
+			jQuery(".sider_guanggao").removeClass("gg_hover");
+			jQuery(".adBox").removeClass("adBox_hover");
+		});
+		jQuery("#contentcontainer .adBox .ad_close").bind("click", function () {
+			// if (_this.config.isLogin == 0) { //未登录,放个cookie
+
+			// 	var cook = new CookieClass();
+			// 	cook.expires = 1;
+			// 	cook.domain = ".docin.com";
+			// 	cook.path = "/";
+			// 	cook.setCookie("vip_alert_adv", "1");
+
+			// 	changeCookieValue(cook, "vip_alert_adv", 1);
+
+			// 	//showlogin();
+			// 	return false;
+			// }
+			closeAdv_vip(1);
+			return false;
+		});
+	},
+	setReaderLogin: function () {
+		var _this = this;
+		if (_this.config.isLogin == 1) {
+			return;
+		}
+		var l = jQuery("#contentcontainer").offset().left + jQuery("#contentcontainer").width() - 200;
+		jQuery(".reader_login").css({
+			left: l
+		}).show();
+		var sc = jQuery(window).scrollTop() + jQuery(window).height(),
+			sct = jQuery(document.body)[0].scrollHeight;
+		if (_this.config.isBuy == 0) {
+			var oReaderLogin = jQuery(".reader_login");
+			if (oReaderLogin.length > 0) {
+				if (_this.config.showStyle == 2) {
+					jQuery(".reader_login").css('bottom', 40);
+					return false;
+				}
+				if (sc >= sct) {
+					jQuery(".reader_login").css('bottom', 200);
+				} else {
+					jQuery(".reader_login").css('bottom', 40);
+				}
+			}
+		}
+	},
+	setBeforeAd: function () { //前贴片广告显示
+		var _this = this;
+		var boforeAd = jQuery("#beforeAd");
+		if (boforeAd.length == 0) {
+			return;
+		}
+		var st = jQuery(window).scrollTop();
+		if (st > _this.oSiderTop) {
+			boforeAd.css({
+				position: 'fixed'
+			});
+		} else {
+			if (_this.zoomFlag == 0) {
+				boforeAd.css({
+					position: 'absolute'
+				});
+			} else if (_this.zoomFlag == 1) {
+				boforeAd.css({
+					position: 'fixed'
+				});
+			}
+
+		}
+		if (_this.zoomFlag == 1) {
+			boforeAd.css({
+				width: pageWidth
+			});
+		} else {
+			boforeAd.css({
+				width: playerWidth
+			});
+		}
+
+		if (!window.XMLHttpRequest) {
+			boforeAd.css({
+				position: 'absolute'
+			});
+		}
+	},
+	countHide: function (num, numBox, o) { //前贴片广告倒计时
+		var boforeAd = jQuery("#beforeAd");
+		if (boforeAd.length == 0) {
+			return;
+		}
+		var _this = this;
+		var contNum = num,
+			numBox = jQuery("#" + numBox);
+		numBox.html(contNum);
+		var numTimer = setInterval(function () {
+			if (contNum == 1) {
+				clearInterval(numTimer);
+				jQuery("#" + o).remove();
+				return;
+			}
+			contNum--;
+			numBox.html(contNum);
+		}, 1000);
+	},
+	handMove: function () {
+		var oDiv = document.getElementById('contentcontainer');
+		jQuery("#moveHandel").css({
+			cursor: 'url(' + picture_image_path_v1 + '/images_cn/news/html_reader/cursor_hand1.ico?rand=20140721),auto'
+		});
+		oDiv.onmousedown = function (ev) {
+			var oEvent = ev || event; //处理事件对象兼容性问题
+			var oEventY = oEvent.clientY;
+			var oEventX = oEvent.clientX;
+			var startY = oEventY + jQuery(window).scrollTop();
+			var startX = oEventX + jQuery(window).scrollLeft();
+			jQuery("#moveHandel").css({
+				cursor: 'url(' + picture_image_path_v1 + '/images_cn/news/html_reader/cursor_drag_hand1.ico?rand=20140721),auto'
+			});
+			if (oDiv.setCapture) {
+				//IE
+				oDiv.onmousemove = fnMove;
+				oDiv.onmouseup = fnUp;
+				oDiv.setCapture();
+			} else {
+				//非IE
+				oDiv.onmousemove = fnMove;
+				oDiv.onmouseup = fnUp;
+			}
+
+			jQuery(".adBox").bind('mouseover', function (event) {
+				event.stopPropagation();
+				fnUp();
+			});
+
+			function fnMove(ev) {
+				var sct = jQuery(document).height();
+				var scw = jQuery(window).width() * 1.5;
+				var oEvent = ev || event;
+				var st = jQuery(window).scrollTop();
+				var sl = jQuery(window).scrollLeft();
+				var t = (oEvent.clientY + st) - startY;
+				var h = (oEvent.clientX + sl) - startX;
+				var cH = jQuery(window).height();
+				var cW = jQuery(window).width();
+				var pct = cH / sct;
+				var pcw = cW / scw;
+				var ddd = (t / sct) * cH / pct;
+				var eee = (h / scw) * cW / pcw;
+				var moveT = Math.ceil(st - ddd);
+				var moveL = Math.ceil(sl - eee);
+				jQuery(window).scrollTop(moveT);
+				jQuery(window).scrollLeft(moveL);
+				return false;
+			}
+
+			function fnUp() {
+				jQuery("#moveHandel").css({
+					cursor: 'url(' + picture_image_path_v1 + '/images_cn/news/html_reader/cursor_hand1.ico?rand=20140721),auto'
+				});
+				oDiv.onmousemove = null;
+				oDiv.onmouseup = null;
+				if (oDiv.releaseCapture) {
+					oDiv.releaseCapture();
+				}
+				return false;
+			}
+			return false;
+		};
+	},
+	hideSelected: function () {
+		var _this = this;
+		var aFlash = document.getElementById('contentcontainer').getElementsByTagName('object');
+		jQuery("#contentcontainer").bind('click', function () {
+			if (_this.config.showStyle == 2) {
+				return;
+			}
+			if (jQuery("#moveHandel").length > 0 && jQuery("#moveHandel").is(":visible")) {
+				return;
+			}
+			aFlash = document.getElementById('contentcontainer').getElementsByTagName('object');
+			for (var i = 0; i < aFlash.length; i++) {
+				aFlash[i].hideSelected()
+			}
+			return false;
+		});
+		jQuery(".panel").bind("click", function (ev) {
+			ev.stopPropagation(); //阻止冒泡
+		});
+	},
+	tabChangeHand: function () {
+		var _this = this;
+		var oHandBtn = jQuery("#j_hand"),
+			oSelectBtn = jQuery("#j_select");
+		if (oHandBtn.length == 0) {
+			return;
+		}
+		oHandBtn.bind('click', function () {
+			if (jQuery(this).hasClass('tool_disabled')) {
+				return;
+			}
+			jQuery(this).addClass('tool_select_active');
+			oSelectBtn.removeClass('tool_select_active');
+			jQuery("#moveHandel").show();
+			if (jQuery('#j_comdoc').length > 0) {
+				jQuery(this).hide();
+				oSelectBtn.show();
+			}
+			_this.handMove();
+		});
+		oSelectBtn.bind('click', function () {
+			if (jQuery(this).hasClass('tool_disabled') || jQuery(this).hasClass('build_disabled')) {
+				return;
+			}
+			jQuery(this).addClass('tool_select_active');
+			oHandBtn.removeClass('tool_select_active');
+			jQuery("#moveHandel").hide();
+			if (jQuery('#j_comdoc').length > 0) {
+				jQuery(this).hide();
+				oHandBtn.show();
+			}
+			var oDiv = document.getElementById('contentcontainer');
+			oDiv.onmousedown = null;
+			oDiv.onmousemove = null;
+			oDiv.onmouseup = null;
+
+			if (jQuery("#reader-copy-el").length == 0) {
+				jQuery('<div id="reader-copy-el" class="copy-tips" style="left:-9000px;top:-9000px;z-index: 9002;"><div class="tips-wrap"><span class="trangle"></span><div class="inner"><a href="javascript:void(0);" onmousedown="return inpmv(' + copy_btn + ');" id="reader-copy-button" style="z-index:9999;">复制</a><span class="s_p"></span><a href="javascript:void(0);" onmousedown="return inpmv(' + search_btn + ');" id="reader-search-button">搜索</a></div></div></div>').appendTo(jQuery(document.body));
+			}
+			if (readerConfig.getPicStyle == 2 && readerConfig.ifScan == "false") {
+				_this.copyPicText();
+			} else if (readerConfig.getPicStyle == 1) {
+				_this.copyText();
+			}
+
+		});
+	},
+	copyText: function () {
+		var _this = this;
+		var showCopyTimer = null;
+		var oDiv = document.getElementById('contentcontainer');
+		oDiv.onmouseup = function (ev) {
+			var ev = ev || window.event;
+			ev.cancelBubble = true;
+			var left = ev.clientX;
+			var top = ev.clientY;
+			var iHeight = jQuery(window).height();
+			var iScorllTop = jQuery(window).scrollTop();
+			var oCopyTips = jQuery("#reader-copy-el");
+			if (oCopyTips.length > 0) {
+				if (top < iHeight / 2 && top <= 100) {
+					oCopyTips.find(".tips-wrap").removeClass("tr-b").addClass("tr-t");
+					iTop = top + iScorllTop + 20;
+				} else if (top >= iHeight / 2 && top + 100 > iHeight) {
+					oCopyTips.find(".tips-wrap").removeClass("tr-t").addClass("tr-b");
+					iTop = top + iScorllTop - 80;
+				} else {
+					oCopyTips.find(".tips-wrap").removeClass("tr-b").addClass("tr-t");
+					iTop = top + iScorllTop + 20;
+				}
+				if (jQuery.trim(_this.txtSelect).length > 0) {
+					setTimeout(function () { //设定一个定时器
+						oCopyTips.css({
+							'left': left - 40,
+							'top': iTop
+						});
+					}, 100);
+					if (readerConfig.isLogin == 1 && readerConfig.showAd == false) {
+						var oText = _this.txtSelect;
+						jQuery('#reader-copy-button').off('click').on('click', function () {
+							copyToClipboard("#reader-copy-button", oText, [left - 40, iTop]);
+						})
+					}
+				}
+			}
+			return false;
+		};
+		jQuery(window).bind("scroll", function () {
+			clearTimeout(showCopyTimer);
+			showCopyTimer = setTimeout(function () {
+				setCopyHide();
+			}, 50);
+		});
+
+		jQuery(document).bind("click", function (event) {
+			var oCopyTips = jQuery("#reader-copy-el");
+			if (oCopyTips.length > 0) {
+
+				if (!oCopyTips.is(event.target) && oCopyTips.has(event.target).length === 0) {
+					setCopyHide();
+				}
+			}
+		});
+		jQuery("#reader-copy-button").off('click').on('click', function (ev) {
+			if (isAuthForCopy() == 0) {
+				setCopyHide();
+				// 2019-7-8
+				jQuery('.t_cover').removeClass('txt_select');
+				return false;
+			}
+		});
+		jQuery("#reader-search-button").click(function (ev) {
+			// txy
+			if (_this.txtSelect.length > 0) {
+				var oSearchTxt = jQuery.trim(_this.txtSelect);
+				window.open('/search.do?searchcat=1004&nkey=' + oSearchTxt.substr(0, 100));
+			}
+			return false;
+		});
+
+		function setCopyHide() {
+			if (jQuery("#reader-copy-el").length > 0) {
+				jQuery("#reader-copy-el").css({
+					'left': '-9000px',
+					'top': '-9000px'
+				});
+				jQuery('#reader-copy-button_copyclick').remove();
+			}
+		}
+
+		function selectText() {
+			if (document.selection) { //IE浏览器下
+				return document.selection.createRange().text; //返回选中的文字
+			} else { //非IE浏览器下
+
+				return window.getSelection().toString(); //返回选中的文字
+			}
+		}
+
+		function copyEnd(data) {
+			jQuery('<div id="reader-copy-end" class="copy-tips copy-end" style="left:-9000px;top:-9000px;z-index:9002;"><div class="tips-wrap"><div class="inner"><img src="' + picture_image_path_v1 + '/images_cn/ico_succ_56x56.png"/>文字已复制</div></div></div>').appendTo(jQuery(document.body));
+			jQuery("#reader-copy-end").css({
+				'left': data[0],
+				'top': data[1]
+			});
+			hideTips("reader-copy-end");
+		}
+		// 新改的复制
+		function copyToClipboard(btnClass, str, data) {
+			if (testIE8()) {
+				var clip = "clip" + handlerId;
+				clip = new ZeroClipboard.Client();
+				clip.setHandCursor(true);
+				clip.addEventListener('mouseOver', function (client) {
+					var oText = jQuery('#' + infoDataId);
+					clip.setText(oText.val());
+					oText.select();
+				});
+				clip.addEventListener('complete', function (client, text) {
+					console.log("内容已经复制，你可以使用Ctrl+V 粘贴。flash");
+					copyEnd(data);
+					_this.setCopyHide();
+				});
+				clip.glue(handlerId);
+				return;
+			}
+			var clipboard = new ClipboardJS(btnClass, {
+				text: function () {
+					return str;
+				}
+			});
+			clipboard.on('success', function (e) {
+				console.log("内容已经复制，你可以使用Ctrl+V 粘贴。非flash");
+				e.clearSelection();
+				clipboard.destroy();
+				copyEnd(data);
+				_this.setCopyHide();
+			});
+			clipboard.on('error', function (e) {
+				console.log("copy error!");
+				clipboard.destroy();
+			});
+		}
+	},
+	textSelect: function () {
+		var _this = this,
+			isMouseDown = false,
+			arrSelect = [],
+			chooseParent = null,
+			chooseIndex = 0,
+			tempArrSelect = [],
+			chooseId = '',
+			// txy
+			txtSelect = '',
+			arrIndexOf = function (arr, id) {
+				var index = -1;
+				for (var i = 0; i < arr.length; i++) {
+					if (arr[i] == id) {
+						return i;
+					}
+				}
+				return index;
+			};
+
+		jQuery(document).on('mousedown', '#contentcontainer img', function (event) {
+			if (event.preventDefault) {
+				event.preventDefault();
+			} else {
+				event.returnValue = false;
+			}
+		});
+		jQuery(document).on('mousedown', '.t_cover', function (event) {
+			event.preventDefault();
+			event.stopPropagation();
+			jQuery('.t_cover').removeClass('txt_select');
+			jQuery(this).addClass('txt_select');
+			isMouseDown = true;
+			arrSelect.length = 0;
+			arrSelect.push(jQuery(this).parent('.t_cover_outer').attr('id'));
+			// 2019-07-04
+			txtSelect = jQuery(this).html();
+			//txy add new
+			chooseIndex = jQuery(this).parent().index();
+			chooseId = jQuery(this).parent().parent().attr('id');
+			chooseParent = jQuery(this).parent().parent();
+			tempArrSelect = arrSelect;
+		});
+		jQuery(document).on('mousemove', '.t_cover_outer', function (event) {
+			event.preventDefault();
+			// txy (clear array every time)
+			arrSelect = tempArrSelect;
+			txtSelect = '';
+			if (isMouseDown) {
+				//表示选中超过一行
+				if (arrIndexOf(arrSelect, jQuery(this).attr('id')) == -1) {
+					var temp = [];
+					var isReverse = false;
+					//begin-end more than one page
+					if (jQuery(this).parent().attr('id') != chooseId) {
+						if (jQuery(this).parent().attr('id') < chooseId) {
+							//down-up
+							for (var n = jQuery(this).index() - 1; n < jQuery(this).parent().find('.t_cover_outer').length; n++) {
+								temp.push(jQuery(this).parent().find('.t_cover_outer').eq(n).attr('id'));
+							}
+							for (var m = 0; m < chooseIndex; m++) {
+								temp.push(chooseParent.find('.t_cover_outer').eq(m).attr('id'));
+							}
+							isReverse = true;
+						} else {
+							//up-down
+							for (var n = chooseIndex; n < chooseParent.find('.t_cover_outer').length; n++) {
+								temp.push(chooseParent.find('.t_cover_outer').eq(n).attr('id'))
+							}
+							for (var m = 0; m < jQuery(this).index(); m++) {
+								temp.push(jQuery(this).parent().find('.t_cover_outer').eq(m).attr('id'));
+							}
+						}
+
+					} else {
+						//begin-end in one page
+						var tempB = jQuery(this).index(),
+							tempA = chooseIndex;
+						if (tempB < tempA) {
+							tempB = chooseIndex;
+							tempA = jQuery(this).index() - 1;
+							isReverse = true;
+						}
+						for (var j = tempA; j < tempB; j++) {
+							temp.push(jQuery(this).parent().find('.t_cover_outer').eq(j).attr('id'));
+						}
+					}
+				}
+				if (isReverse) {
+					arrSelect = arrSelect.concat(temp).slice(1);
+				} else {
+					arrSelect = arrSelect.concat(temp);
+				}
+
+				jQuery('.t_cover').removeClass('txt_select');
+				for (var i = 0; i < arrSelect.length; i++) {
+					jQuery('#' + arrSelect[i]).children('.t_cover').addClass('txt_select');
+					txtSelect += jQuery('#' + arrSelect[i]).children('.t_cover').text();
+				}
+			} else {
+				return;
+			}
+		});
+		jQuery('#contentcontainer').on('mousedown', function () {
+			jQuery('.t_cover').removeClass('txt_select');
+			arrSelect.length = 0;
+		});
+		jQuery('#contentcontainer').on('mouseup', function (event) {
+			event.preventDefault();
+			isMouseDown = false;
+			_this.arrSelect = arrSelect;
+			_this.txtSelect = txtSelect;
+		});
+
+	},
+	copyPicText: function () {
+		var _this = this;
+		var oDiv = document.getElementById('contentcontainer');
+		var oContainer = jQuery("#contentcontainer");
+		var target = null;
+		var startX = 0,
+			startY = 0;
+		var startL = 0,
+			startT = 0;
+		var boxHeight = 0,
+			boxWidth = 0;
+		var flushfDate = [0, 0]; // 第1个值是起始位置  第2个值是结束位置 
+		var referenceSize = {
+			"pos": oContainer.offset(),
+			"width": oContainer.outerWidth(),
+			"height": oContainer.outerHeight()
+		}
+		var iImgScale = (referenceSize.width - 2) / 1000;
+		var newMarkPos = {
+			"left": startL, ////按下时鼠标距离的左边的距离
+			"top": startT ////按下时鼠标距离的上边的距离
+		}
+
+		function stopDefault(e) {
+			if (e && e.preventDefault)
+				e.preventDefault();
+			else
+				window.event.returnValue = false;
+			return false;
+		}
+
+		function stopBubble(e) {
+			window.event ? window.event.cancelBubble = true : e.stopPropagation();
+		}
+		oDiv.onmousedown = function (ev) {
+			var oEvent = ev || event; //处理事件对象兼容性问题
+			var oEventY = oEvent.clientY;
+			var oEventX = oEvent.clientX;
+			target = oEvent.target || oEvent.srcElement; //获取document 对象的引用
+			startX = oEventX + jQuery(window).scrollLeft();
+			startY = oEventY + jQuery(window).scrollTop();
+			var curImgobj = jQuery(target).offset();
+			var curImgobjBottom = curImgobj.top + jQuery(target).height();
+			referenceSize = {
+				"pos": jQuery(target.parentNode).offset(),
+				"width": jQuery(target.parentNode).outerWidth(),
+				"height": jQuery(target.parentNode).outerHeight()
+			}
+			startL = startX - referenceSize.pos.left;
+			startT = startY - referenceSize.pos.top;
+			//console.log(startL+"::::"+startT);
+			//console.log(startX+":::"+startY);
+			if (oDiv.setCapture) {
+				//IE
+				oDiv.onmousemove = fnMove;
+				oDiv.onmouseup = fnUp;
+				oDiv.setCapture();
+			} else {
+				//非IE
+				oDiv.onmousemove = fnMove;
+				oDiv.onmouseup = fnUp;
+			}
+			if (target.src) {
+				if (jQuery("#copyMask").length >= 0) {
+					jQuery("#copyMask").remove();
+					var divMask = document.createElement("div");
+					divMask.id = "copyMask";
+					divMask.className = "dashed-box";
+					if (target.parentNode) {
+						target.parentNode.appendChild(divMask);
+					}
+					//oDiv.appendChild(divMask);
+					divMask = null;
+				}
+			}
+			var oCopyTips = jQuery("#reader-copy-el");
+			if (oCopyTips.length > 0) {
+				setCopyHide();
+			}
+			stopDefault(oEvent);
+			stopBubble(oEvent);
+			jQuery(".adBox").bind('mouseover', function (event) {
+				event.stopPropagation();
+				fnUp();
+			});
+
+			function fnMove(ev) {
+				var oEvent = ev || event;
+				stopDefault(oEvent);
+				var endX = oEvent.clientX + jQuery(window).scrollLeft(),
+					endY = oEvent.clientY + jQuery(window).scrollTop();
+				if (endY > curImgobjBottom - 10) {
+					endY = curImgobjBottom - 10;
+					//console.log(endY+":::::"+curImgobjBottom);
+				}
+				var disX = endX - startX,
+					disY = endY - startY;
+
+				var L = startL + disX,
+					T = startT + disY;
+				// if(disX>0){
+				// 	if(L>=0){
+				// 		boxWidth = disX;
+				// 	}
+				// 	newMarkPos.left = startL;
+				// }
+				// else{
+				// 	if(L<0){
+				// 		L = 0;
+				// 		boxWidth = startL;
+				// 	}
+				// 	newMarkPos.left = L;
+				// 	boxWidth = startL-L;
+				// }
+				boxWidth = referenceSize.width - 20;
+				newMarkPos.left = 10;
+				if (disY > 0) {
+					if (T >= 0) {
+						boxHeight = disY;
+					}
+					newMarkPos.top = startT;
+				} else {
+					if (T < 0) {
+						T = 0;
+						boxHeight = startT;
+					}
+					newMarkPos.top = T;
+					boxHeight = startT - T;
+				}
+				if (boxHeight >= 1) {
+					var oMask = document.getElementById("copyMask");
+					if (oMask) {
+						oMask.style.left = newMarkPos.left + "px";
+						oMask.style.top = newMarkPos.top + "px";
+						oMask.style.width = Math.abs(boxWidth) + "px";
+						oMask.style.height = Math.abs(boxHeight) + "px";
+					}
+				}
+				return false;
+			}
+
+			function fnUp(ev) {
+				var oEvent = ev || event;
+				stopBubble(oEvent);
+				stopDefault(oEvent);
+				if (boxHeight < 20) {
+					if (jQuery("#copyMask").length > 0) {
+						jQuery("#copyMask").remove();
+					}
+					flushfDate[0] = -1;
+					flushfDate[1] = -1;
+				} else {
+					var curImgobj = jQuery(target).offset();
+					var curImgPosTop = curImgobj.top - referenceSize.pos.top;
+					flushfDate[0] = Math.ceil((newMarkPos.top - curImgPosTop) / iImgScale); //起始位置
+					flushfDate[1] = Math.ceil(boxHeight / iImgScale) + flushfDate[0]; //结束位置
+					//console.log(iImgScale);
+					//console.log(flushfDate[0]+":::::"+flushfDate[1]);
+					//console.log(target);
+					var curImageNo = target.parentNode.id.slice(4);
+					//console.log(curImageNo);
+					_this.showCopyTips(oEvent, curImageNo, flushfDate, target);
+
+				}
+				boxHeight = 0;
+				oDiv.onmousemove = null;
+				oDiv.onmouseup = null;
+				if (oDiv.releaseCapture) {
+					oDiv.releaseCapture();
+				}
+				return false;
+			}
+			return false;
+		};
+
+		function setCopyHide() {
+			if (jQuery("#reader-copy-el").length > 0) {
+				jQuery("#reader-copy-el").css({
+					'left': '-9000px',
+					'top': '-9000px'
+				});
+			}
+			if (jQuery("#reader-copy-button_copyclick").length > 0) {
+				jQuery("#reader-copy-button_copyclick").remove();
+			}
+			if (jQuery("#reader-copy-end").length > 0) {
+				jQuery("#reader-copy-button_copyclick").remove();
+			}
+
+		}
+	},
+	showCopyTips: function (event, curPageno, flushfDate, target) {
+		var _this = this;
+		var oCopyTips = jQuery("#reader-copy-el");
+		var left = event.clientX;
+		var top = event.clientY;
+		var iHeight = jQuery(window).height();
+		var iScorllTop = jQuery(window).scrollTop();
+		var iTop = 0;
+		var showCopyTimer = null;
+		var curImgobj = jQuery(target).offset();
+		var curImgobjBottom = curImgobj.top + jQuery(target).height();
+		var copyText = "";
+		if (oCopyTips.length > 0) {
+			if (top < iHeight / 2 && top <= 100) {
+				oCopyTips.find(".tips-wrap").removeClass("tr-b").addClass("tr-t");
+				iTop = top + iScorllTop + 20;
+			} else if (top >= iHeight / 2 && top + 100 > iHeight) {
+				oCopyTips.find(".tips-wrap").removeClass("tr-t").addClass("tr-b");
+				iTop = top + iScorllTop - 80;
+			} else {
+				oCopyTips.find(".tips-wrap").removeClass("tr-b").addClass("tr-t");
+				iTop = top + iScorllTop + 20;
+			}
+			console.log(iTop);
+			if (iTop > curImgobjBottom - 10) {
+				iTop = curImgobjBottom - 10;
+			}
+			clearTimeout(showCopyTimer);
+			showCopyTimer = setTimeout(function () { //设定一个定时器
+				oCopyTips.css({
+					'left': left - 40,
+					'top': iTop
+				});
+			}, 100);
+			//点击复制
+			jQuery('#reader-copy-button').off('click').on('click', function () {
+				var iReturnValue = isAuthForCopy();
+				if (iReturnValue == 1) {
+					var iUrl = '/p/end/ajax/getImgEndText.do?file=' + _this.config.productId + '&pageno=' + curPageno + '&areah1=' + flushfDate[0] + '&areah2=' + flushfDate[1] + '&ssr=0&type=1&width=' + _this.imgWidth;
+					jQuery.ajax({
+						type: "GET",
+						url: iUrl,
+						async: false,
+						success: function (data, textStatus) {
+							var copyData = JSON.parse(data);
+							if (copyData.ok == 1) {
+								var iCopyText = copyData.content;
+								copyText = jQuery.trim(iCopyText);
+								console.log(copyText);
+								if (copyText.length > 0) {
+									copyToClipboard("#reader-copy-button", iCopyText, [left - 40, iTop]);
+								}
+								setCopyHide();
+							}
+
+						}
+					});
+				} else {
+					setCopyHide();
+				}
+			});
+			//点击搜索
+			jQuery("#reader-search-button").off('click').on('click', function () {
+				var iUrl = '/p/end/ajax/getImgEndText.do?file=' + _this.config.productId + '&pageno=' + curPageno + '&areah1=' + flushfDate[0] + '&areah2=' + flushfDate[1] + '&ssr=0&type=2'
+				jQuery.ajax({
+					type: "GET",
+					url: iUrl,
+					async: false,
+					success: function (data, textStatus) {
+						var copyData = JSON.parse(data);
+						if (copyData.ok == 1) {
+							var iCopyText = copyData.content;
+							var oSearchTxt = jQuery.trim(iCopyText);
+							console.log(oSearchTxt);
+							if (oSearchTxt.length > 0) {
+								oSearchTxt = jQuery.trim(oSearchTxt);
+								if ((typeof isBuilding != "undefined") && isBuilding == 1) {
+									if (jQuery('.build_new_fixed_top_search').length > 0) {
+										// t
+										window.open(urlPrefix.www + '/search.do?buildsearch=1&nkey=' + oSearchTxt.substr(0, 100));
+									} else {
+										// 外网
+										window.open('/search.do?searchcat=1004&nkey=' + oSearchTxt.substr(0, 100));
+									}
+								} else {
+									window.open('/search.do?searchcat=1004&nkey=' + oSearchTxt.substr(0, 100));
+								}
+							}
+							setCopyHide();
+						}
+
+					}
+				});
+
+			});
+		}
+		jQuery(document).bind("mousedown", function (ev) {
+			var oEvent = ev || event;
+			//stopDefault(oEvent);
+			var oCopyTips = jQuery("#reader-copy-el");
+			if (oCopyTips.length > 0) {
+				if (!oCopyTips.is(oEvent.target) && oCopyTips.has(oEvent.target).length === 0) {
+					setCopyHide();
+				}
+			}
+			var oCopyMask = jQuery("#copyMask");
+			if (oCopyMask.length > 0) {
+				jQuery("#copyMask").remove();
+			}
+		});
+
+		function setCopyHide() {
+			if (jQuery("#reader-copy-el").length > 0) {
+				jQuery("#reader-copy-el").css({
+					'left': '-9000px',
+					'top': '-9000px'
+				});
+			}
+			if (jQuery("#reader-copy-button_copyclick").length > 0) {
+				jQuery("#reader-copy-button_copyclick").remove();
+			}
+			if (jQuery("#reader-copy-end").length > 0) {
+				jQuery("#reader-copy-button_copyclick").remove();
+			}
+
+		}
+
+		function copyEnd(data) {
+			jQuery('<div id="reader-copy-end" class="copy-tips copy-end" style="left:-9000px;top:-9000px;z-index:9002;"><div class="tips-wrap"><div class="inner"><img src="' + picture_image_path_v1 + '/images_cn/ico_succ_56x56.png"/>文字已复制</div></div></div>').appendTo(jQuery(document.body));
+			jQuery("#reader-copy-end").css({
+				'left': data[0],
+				'top': data[1]
+			});
+
+			hideTips("reader-copy-end");
+		}
+		// function copyToClipboard(btnClass, str,data) {
+		// 	var clipboard = new ClipboardJS(btnClass, {
+		// 		text: function () {
+		// 			return str;
+		// 		}
+		// 	});
+		// 	clipboard.on('success', function (e) {
+		// 		console.log("copy success!");
+		// 		copyEnd(data);
+		// 		setCopyHide();
+		// 		clipboard = null;
+		// 	});
+		// 	clipboard.on('error', function (e) {
+		// 		console.log("copy error!");
+		// 		clipboard = null;
+		// 	});
+		// }
+
+
+		function copyToClipboard(btnClass, str, data) {
+			if (testIE8()) {
+				var clip = "clip" + handlerId;
+				clip = new ZeroClipboard.Client();
+				clip.setHandCursor(true);
+				clip.addEventListener('mouseOver', function (client) {
+					var oText = jQuery('#' + infoDataId);
+					clip.setText(oText.val());
+					oText.select();
+				});
+				clip.addEventListener('complete', function (client, text) {
+					console.log("内容已经复制，你可以使用Ctrl+V 粘贴。flash");
+					copyEnd(data);
+					setCopyHide();
+				});
+				clip.glue(handlerId);
+				return;
+			}
+			var clipboard = new ClipboardJS(btnClass, {
+				text: function () {
+					return str;
+				}
+			});
+			clipboard.on('success', function (e) {
+				console.log("内容已经复制，你可以使用Ctrl+V 粘贴。非flash");
+				//e.clearSelection();
+				copyEnd(data);
+				setCopyHide();
+				clipboard.destroy();
+			});
+			clipboard.on('error', function (e) {
+				console.log("copy error!");
+				clipboard.destroy();
+			});
+		}
+	},
+	loadRelative: function () {
+		var _this = this;
+		if (jQuery("#relative_doc_mod").length == 0) {
+			return;
+		}
+		var disease = typeof (is_disease) == "undefined" ? 0 : 1;
+		var medical_id = typeof (medicalid) == "undefined" ? '' : medicalid;
+		var dis_name = typeof (diseasename) == "undefined" ? '' : diseasename;
+		var url = "/app/p/end/ajax/getRightRelativeDocs";
+		var metaKeyWords = jQuery("meta[name='keywords']").attr("content");
+		var metaDescription = jQuery("meta[name='description']").attr("content");
+		var isShowAdv = _this.config.showAd;
+		var _is_so = typeof (is_so) == "undefined" ? '' : is_so;
+		var _docin_search_key = typeof (docin_search_key) == "undefined" ? '' : encodeURI(docin_search_key);
+
+		if (readerConfig._BFD_data == undefined) {
+			var iData = {
+				medical_: medical_id,
+				disease_name: dis_name,
+				is_disease: disease,
+				type: 1,
+				metaDescription: metaDescription,
+				metaKeyWords: metaKeyWords,
+				id: _this.config.productId,
+				isShowAdv: isShowAdv,
+				isType: _this.config.isType,
+				isSo: _is_so,
+				dcoinSearch: _docin_search_key
+			};
+		} else {
+			var iData = {
+				medical_: medical_id,
+				disease_name: dis_name,
+				is_disease: disease,
+				type: 1,
+				metaDescription: metaDescription,
+				metaKeyWords: metaKeyWords,
+				id: _this.config.productId,
+				isShowAdv: isShowAdv,
+				isBFD: readerConfig._BFD_data,
+				isSo: _is_so,
+				dcoinSearch: _docin_search_key
+			};
+		}
+		jQuery.post(url, iData, function (re) {
+			//将请求结果放置到相关文档div中
+			jQuery("#relative_doc_mod").html(re);
+			/*randmon a doc*/
+			if (jQuery("#j_isend").length > 0) {
+				var aDocLinks = jQuery("#relative_doc_mod .relative_bd .list_p a"),
+					aLinksArry = [];
+				if (aDocLinks.length > 0) {
+					for (var i = 0; i < aDocLinks.length; i++) {
+						aLinksArry.push(jQuery(aDocLinks[i]).prop("href"));
+					}
+					var randomLink = Math.floor(Math.random() * aLinksArry.length);
+					if (jQuery("#simiSelect").length > 0) {
+						jQuery("#simiSelect").prop("href", aLinksArry[randomLink]);
+						jQuery("#simiSelect").show();
+					}
+				}
+			}
+			if (jQuery(".sider_guanggao").length > 0 && isShowAdv == true) {
+				jQuery(".sider_guanggao").show();
+				var rightNewAd = jQuery('#right_end_new_adv'),
+					oCloseCurMode = jQuery("#j_closeCurMod");
+				if (rightNewAd.length > 0) {
+					jQuery(window).bind("scroll", function () {
+						var advTop = rightNewAd.offset().top,
+							st = jQuery(window).scrollTop(),
+							sH = st + jQuery(window).height();
+						if (advTop <= sH) {
+							if (!jQuery('#right_end_new_adv iframe').attr('src')) {
+								jQuery('#right_end_new_adv iframe').attr({
+									src: '/docin_adv/adv.do?pos=27'
+								});
+							}
+						}
+					});
+				}
+				if (oCloseCurMode.length > 0 && jQuery(".sider_guanggao").length > 0) {
+					oCloseCurMode.hover(function () {
+						jQuery(".sider_guanggao").addClass("gg_hover");
+						jQuery(".adBox").addClass("adBox_hover");
+					}, function () {
+						jQuery(".sider_guanggao").removeClass("gg_hover");
+						jQuery(".adBox").removeClass("adBox_hover");
+					});
+					oCloseCurMode.bind("click", function () {
+						// if (_this.config.isLogin == 0) { //未登录,放个cookie
+
+						// 	var cook = new CookieClass();
+						// 	cook.expires = 1;
+						// 	cook.domain = ".docin.com";
+						// 	cook.path = "/";
+						// 	cook.setCookie("vip_alert_adv", "1");
+
+						// 	changeCookieValue(cook, "vip_alert_adv", 1);
+
+						// 	//showlogin();
+						// 	return false;
+						// }
+						closeAdv_vip(2);
+					});
+				}
+			}
+			if (jQuery(".ht-top-head").length == 0) { //判断非合同频道才计算右侧相关文档
+				relateDocH = jQuery('.relative_doc_inner').length == 1 ? jQuery('.relative_doc_inner').outerHeight() : jQuery('.relative_doc_inner').eq(1).outerHeight();
+				initRelaHeight();
+				jQuery(window).bind('resize', function () {
+					resizeRela();
+				});
+			}
+			if (!window.XMLHttpRequest) {
+				return;
+			}
+		});
+	},
+	getOtherDocs: function () {
+		var _this = this;
+
+		function relaAjax() {
+			var url = "/app/p/end/ajax/getOtherDocs";
+			jQuery.post(url, {
+				"type": "1",
+				"pubInt": readerConfig.pubInt,
+				"productId": readerConfig.productId,
+				"userId": readerConfig.userId,
+				"productName": readerConfig.productName,
+				"userName": readerConfig.userName,
+				"userLikePsFlag": readerConfig.userLikePsFlag,
+				"showStyle": readerConfig.showStyle,
+				"isotherdoc": readerConfig.isotherdoc
+			}, function (re) {
+
+				if (typeof (isBuilding) == "undefined" && typeof (is_disease) == "undefined") {
+					_this.addRecomm();
+				}
+				//将请求结果放置到相关文档div中
+				var dataHtml = jQuery.trim(re),
+					dlLength = jQuery(dataHtml).find('li').length;
+				jQuery("#jControlDiv").append(dataHtml);
+				var oLikeToo = jQuery("#likeToo");
+				oLikeToo.show();
+				if (dlLength > 0 && dlLength < 10) {
+					jQuery("#likeToo .bd").css({
+						height: 210
+					});
+				} else if (dlLength >= 10) {
+					jQuery("#likeToo .bd").css({
+						height: 'auto'
+					});
+				}
+			});
+		}
+		if (typeof (readerConfig) != "undefined" && readerConfig.previewNum == 0 && iscanread == 0) {
+			relaAjax();
+			return false;
+		}
+		jQuery(document).on('scroll', function () {
+			var a = jQuery('.reader_container>div:last').offset().top,
+				b = jQuery(document).scrollTop(),
+				c = jQuery(window).height();
+			if (a - b - c < 0 && typeof readerConfig.isLoadOtherDocs == 'undefined') {
+				readerConfig.isLoadOtherDocs = true;
+				relaAjax();
+			}
+		});
+	},
+	addRecomm: function () {
+		var _this = this;
+		var i_first = 1;
+		var sessinId = getCookie2008_1('docin_session_id');
+		var aLabelId = [258, 200, 476, 477, 478, 479, 262, 475, 100, 509];
+		if (sessinId != "" && sessinId != null) {
+			readerConfig.isLoadRecomm = true;
+			var oLast = parseInt(sessinId.substr(-1));
+			if (oLast >= 0 && oLast <= 7 && oLast != NaN) {
+				function createModDemo() {
+					var oModStr = '<div id="j_recomm" class="recommend_fy clear"><dl class="recommend_fy_hd" style="position:absolute;"><dt>为您推荐</dt>';
+					oModStr += '<dd data-labelid="258"><span>热门</span><i></i></dd>';
+					oModStr += '<dd data-labelid="200"><span>DAILY</span><i></i></dd>';
+					oModStr += '<dd data-labelid="476"><span>运势</span><i></i></dd>';
+					oModStr += '<dd data-labelid="477"><span>情感</span><i></i></dd>';
+					oModStr += '<dd data-labelid="478"><span>摄影</span><i></i></dd>';
+					oModStr += '<dd data-labelid="479"><span>养生</span><i></i></dd>';
+					oModStr += '<dd data-labelid="262"><span>杂志</span><i></i></dd>';
+					oModStr += '<dd data-labelid="475"><span>创业</span><i></i></dd>';
+					oModStr += '<dd data-labelid="100"><span>建筑</span><i></i></dd>';
+					oModStr += '<dd data-labelid="509"><span>漫画</span><i></i></dd>';
+					oModStr += '</dl><div class="recommend_fy_bd"><div id="fyItems" style="min-height:600px;"></div><div class="fy_item_more" style="display:none;"><a class="load_btn" href="javascript:void(0);">加载更多</a></div>';
+					//jQuery(oModStr).appendTo(jQuery('.page_body .main'));	
+					jQuery('<div id="jControlDivRecomm"></div>').appendTo(jQuery('.page_body .main'))
+					jQuery(oModStr).appendTo(jQuery('#jControlDivRecomm'));
+				}
+				createModDemo();
+				var oRecommFy = jQuery(".recommend_fy");
+				var oFyItems = jQuery("#fyItems");
+				var oMoreBtn = jQuery(".load_btn");
+				var aLabelTab = jQuery(".recommend_fy_hd dd");
+				var aCurLabel = [0, 1];
+				if (oRecommFy.length > 0) {
+					jQuery(window).on("scroll", function () {
+						if (_this.zoomFlag > 0) {
+							return;
+						}
+						var iSt = jQuery(window).scrollTop();
+						var iTop = oRecommFy.offset().top - 40;
+						if (iSt >= iTop - 100) {
+							jQuery(".j_sidercontrol").hide();
+							jQuery("#floderbtn").hide();
+							jQuery(".head_wrapper").hide();
+						} else {
+							jQuery(".j_sidercontrol").show();
+							if (_this.zoomFlag == 0 || _this.zoomFlag == 1) {
+								jQuery("#floderbtn").show();
+							}
+							jQuery(".head_wrapper").show();
+						}
+						if (iSt >= iTop) {
+							//jQuery(".j_sidercontrol").hide();
+							jQuery(".recommend_fy_hd").css({
+								'position': 'fixed',
+								'top': 40
+							});
+
+						} else {
+
+							jQuery(".recommend_fy_hd").css({
+								'position': 'absolute',
+								'top': 40
+							});
+
+						}
+					});
+					jQuery(".fy_item_more").on("click", ".load_btn", function () {
+						aCurLabel[1]++;
+						labelClickHandel();
+					});
+					aLabelTab.bind("click", function () {
+						var curLabelIndex = aLabelTab.index(jQuery(this));
+						aLabelTab.removeClass("cur");
+						jQuery(this).addClass("cur");
+						//var curLabel = jQuery(this).data("labelid");
+						aCurLabel[0] = curLabelIndex;
+						aCurLabel[1] = 1;
+						labelClickHandel();
+					});
+					aLabelTab[0].click();
+
+					function createDataItem(labeid, l, m, t, n, s) {
+						var iName = '';
+						if (labeid == 100) {
+							iName = '<span class="i_name"><span class="i_yl">' + n + '</span></span>';
+						} else if (labeid == 509) {
+							iName = ''
+							s = '上传时间：' + s;
+						} else {
+							iName = '<span class="i_name"><a href="' + urlPrefix.www + '/' + n + '" target="_blank">' + n + '</a></span>';
+						}
+						var oFyItemStr = '<div class="fy_item clear"><div class="fy_cover"><a href="' + l + '" target="_cygj">';
+						oFyItemStr += '<img src="' + m + '"  onerror="imgnofind(event)" /></a></div>';
+						oFyItemStr += '<div class="fy_detail"><h3><a href="' + l + '" target="_cygj">' + t + '</a></h3>';
+						oFyItemStr += '<div class="fy_info">' + iName + '<span class="i_time">' + s + '</span>';
+						oFyItemStr += '</div></div></div>';
+						jQuery(oFyItemStr).appendTo(oFyItems);
+					}
+
+					function labelClickHandel() {
+						jQuery(".fy_item_more").hide();
+						if (aCurLabel[1] == 1) {
+							oFyItems.html("");
+						}
+						oFyItems.append('<p id="fyLoading" style="padding-top:48px;height: 164px; text-align: center; width: 100%; color:#989898;"><img width="24" src="' + picture_image_path_v1 + '/images_cn/newDocin/loading.gif"><br/>内容加载中，请稍候...</p>');
+
+						var docUrl = '/p/end/ajax/getIndexData.do';
+						var pendingRequests = {};
+						jQuery.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+							var key = options.url;
+							if (!pendingRequests[key]) {
+								pendingRequests[key] = jqXHR;
+							} else {
+								//jqXHR.abort();    //放弃后触发的提交
+								pendingRequests[key].abort(); // 放弃先触发的提交
+							}
+
+							var complete = options.complete;
+							options.complete = function (jqXHR, textStatus) {
+								pendingRequests[key] = null;
+								if (jQuery.isFunction(complete)) {
+									complete.apply(this, arguments);
+								}
+							};
+						});
+						jQuery.ajax({
+							type: "GET",
+							url: docUrl,
+							data: 'type=' + aLabelId[aCurLabel[0]] + '&current_page=' + aCurLabel[1],
+							cache: false,
+							success: function (data, textStatus) {
+								var dataJson = data;
+								if (jQuery.isEmptyObject(dataJson)) {
+									jQuery(".fy_item_more").hide();
+									if (jQuery("#fyLoading").length > 0) {
+										jQuery("#fyLoading").remove();
+									}
+									var nextLabelId = ++aCurLabel[0];
+									if (nextLabelId == aLabelId.length) {
+										nextLabelId = 0;
+										aCurLabel[0] = 0;
+										aCurLabel[1] = 1;
+									}
+
+									aLabelTab[nextLabelId].click();
+									return false;
+								}
+								if (aLabelId[aCurLabel[0]] == 509) {
+									jQuery(".fy_item_more").html('<a href="' + urlPrefix.manhua + '/" target="_blank" title="查看更多">查看更多</a>');
+								} else {
+									jQuery(".fy_item_more").html('<a class="load_btn" href="javascript:void(0);">加载更多</a>');
+								}
+								for (var i in dataJson) {
+									var objItem = dataJson[i];
+									if (objItem != undefined) {
+										createDataItem(aLabelId[aCurLabel[0]], objItem.jump_url, objItem.pic_url, objItem.product_name, objItem.uploadUserName, objItem.upload_date);
+									}
+
+								}
+								if (jQuery("#fyLoading").length > 0) {
+									jQuery("#fyLoading").remove();
+								}
+								jQuery(".fy_item_more").show();
+								if (aLabelId[aCurLabel[0]] == 200 && i_first == 1) {
+									i_first = 0;
+								} else if (aCurLabel[1] == 1 && i_first == 0) {
+									var iSt = oRecommFy.offset().top - 20;
+									jQuery(window).scrollTop(iSt);
+								}
+
+							},
+							error: function (XMLHttpRequest, textStatus, errorThrown) {
+								if (errorThrown != 'abort') {
+									//ajax被调用abort后执行的方法
+									console.log('您的ajax方法被停止了');
+								}
+							},
+							complete: function (XMLHttpRequest, textStatus) {}
+
+						});
+					}
+				}
+			}
+		}
+	},
+	setFloderBtn: function () {
+		var _this = this;
+		var oLeft = jQuery(".main").offset().left + jQuery(".main").width();
+		_this.floderBtn.css({
+			left: oLeft
+		});
+	},
+	setPage: function (window) {
+		var _this = this;
+		var oSider = jQuery(".aside");
+		var oToolBar = jQuery('.docin_reader_tools');
+		var oSiderTop = _this.oSiderTop;
+		var oRecVideo = jQuery('.docin_reader_recVideo');
+		var oContWidth = jQuery("#contentcontainer").width();
+		var oSiderRight = (jQuery(window).width() - pageWidth) / 2;
+		var oUserInfo = jQuery('.user_doc_mod');
+		var oNewDownloadBtn = jQuery(".downloadArea2");
+		var oRelative = jQuery('.relative_doc_mod');
+		var oFixControl = jQuery(".j_sidercontrol"); //建筑新增代码
+
+		if (oRelative.length > 0) {
+			var oRelativeTop = oRelative.offset().top;
+		}
+
+		var oBanner = jQuery(".doc_hd_mini,.J_Top"),
+			oBannerBuild = jQuery(".doc_hd");
+		if (oBanner.length > 0) {
+			if (oBanner.hasClass('J_Top')) {
+				// 企业工具 合同 建筑
+				var oBannerTop = oBanner.outerHeight() + jQuery('#docin-global-nav').outerHeight();
+			} else {
+				//豆丁文档 医疗
+				var oBannerTop = oBanner.height();
+			}
+		}
+		if (oBannerBuild.length > 0) {
+			var oBannerTop = oBannerBuild.outerHeight() + jQuery(".doc_hds").outerHeight();
+		}
+		//setToolBarFix(1);
+		siderFixedMove(1);
+		_this.width = jQuery(window).width();
+		_this.height = jQuery(window).height();
+		jQuery(window).on('scroll', function () {
+			if ((typeof isBuilding != "undefined") && isBuilding == 1) {
+				if (jQuery('.build_new_fixed_top_search').length > 0) {
+					jQuery('.build_new_fixed_top_search').find('input').blur();
+				}
+			}
+			if ((_this.zoomFlag == 0 || _this.zoomFlag == 1) || _this.config.showStyle == 1) {
+				setBarPosition();
+			}
+			if (!window.XMLHttpRequest) {
+				return;
+			}
+			if (_this.zoomFlag == 1 || _this.zoomFlag == 2) {
+				//setToolBarFix(2);
+				siderFixedMove(2);
+			} else if (_this.zoomFlag == 0 && _this.config.showStyle == 1) {
+				//setToolBarFix(1);
+				siderFixedMove(1);
+				_this.setBeforeAd();
+				if (_this.curPage == 1) {
+					jQuery('.reader_container .panel_inner').eq(0).css("backgroundPosition", "center center");
+				}
+			} else if (_this.zoomFlag == 0 && _this.config.showStyle == 2) {
+				//setToolBarFix(1);
+			}
+			if (_this.zoomFlag == 0 && _this.config.showStyle == 1 && (typeof (isCartOrisCode) == "undefined" || typeof (isBuilding) == "undefined") && jQuery(".ht-top-head").length == 0) {
+				var st = jQuery(window).scrollTop();
+				if (st > oSiderTop) {
+					resizeRelaHeight();
+				} else {
+					initRelaHeight();
+				}
+			}
+
+		});
+		jQuery(window).bind('resize', function () {
+			if (!window.XMLHttpRequest) {
+				return;
+			}
+			oSiderRight = (jQuery(window).width() - pageWidth) / 2;
+			if (typeof (isBuilding) != "undefined" || jQuery(".ht-top-head").length == 1) {
+				_this.setFloderBtn(); //建筑新增代码
+			}
+			if (jQuery(window).scrollTop() > oSiderTop) {
+
+				if (_this.zoomFlag == 0 && _this.config.showStyle == 1) { //初始化状态
+					siderFixedMove(1);
+					return false;
+				}
+				if (_this.zoomFlag == 1 || _this.zoomFlag == 2) {
+					siderFixedMove(2);
+					return false;
+				}
+			} else {
+				if (_this.zoomFlag == 0) { //初始化状态
+					siderFixedMove(3);
+					return false;
+				}
+				if (_this.zoomFlag == 1 || _this.zoomFlag == 2) {
+					siderFixedMove(2);
+					return false;
+				}
+			}
+
+		});
+
+
+		function siderFixedMove(f) {
+			if (!window.XMLHttpRequest) {
+				return;
+			}
+			var st = jQuery(window).scrollTop();
+			oSiderRight = (jQuery(window).width() - pageWidth) / 2;
+			//设置书签
+			if (st >= oBannerTop) {
+				if (_this.zoomFlag == 0) {
+					jQuery("#bookmarktips").css({
+						top: 68,
+						width: playerWidth - 2
+					});
+				} else {
+					jQuery("#bookmarktips").css({
+						top: 68,
+						width: 'auto'
+					});
+				}
+			} else {
+				setTimeout(function () {
+					var tt1 = jQuery("#contentcontainer").offset().top;
+					if (jQuery("#docin-global-nav").length > 0) {
+						tt1 = tt1 - jQuery("#docin-global-nav").outerHeight();
+					}
+					jQuery("#bookmarktips").css({
+						top: tt1,
+						width: playerWidth - 2
+					});
+				}, 200);
+				oToolBar.css({
+					top: oBannerTop - st
+				});
+			}
+			//建筑终极页新增代码开始
+			if ((typeof (isBuilding) != "undefined" && isBuilding == 1) || jQuery(".ht-top-head").length == 1) {
+				var cH = jQuery(window).height(),
+					posb = oFixControl.offset().top + oFixControl.height(),
+					sth = cH + st,
+					post = oFixControl.offset().top;
+				if (f == 1) {
+					if (st > oSiderTop) {
+						if (oSiderRight <= 0) {
+							oSider.css({
+								margin: 0
+							});
+						} else {
+							oSider.css({
+								margin: 0
+							});
+						}
+					}
+				} else if (f == 2) {
+					if (oSiderRight <= 0) {
+						oSider.css({
+							margin: 0
+						});
+					} else {
+						oSider.css({
+							margin: 0
+						});
+						oSiderRight = (jQuery(window).width() - pageWidth) / 2;
+					}
+				}
+				// if(oUserInfo.length>0){
+				// 	oUserInfo.show();
+				// 	}
+				if (oNewDownloadBtn.length > 0) {
+					oNewDownloadBtn.show();
+				}
+				if (_this.config.showStyle == 1 && _this.zoomFlag == 0) {
+					relativeControl();
+				}
+				return false;
+			}
+			//建筑终极页新增代码结束
+			if (jQuery(".reader_container").height() < (jQuery(window).height() - jQuery(".reader_container").offset().top)) {
+				return;
+			}
+
+			if (f == 1) {
+				if (st > oSiderTop) {
+					if (oSiderRight <= 0) {
+						oSider.css({
+							position: 'fixed',
+							top: 68,
+							right: oSiderRight * 2,
+							left: 'auto',
+							margin: 0
+						});
+					} else {
+						oSider.css({
+							position: 'fixed',
+							top: 68,
+							right: oSiderRight,
+							left: 'auto',
+							margin: 0
+						});
+					}
+					if (typeof (isCartOrisCode) != "undefined" && isCartOrisCode == 1) {
+						if (oUserInfo.length > 0) {
+							oUserInfo.show();
+						}
+					} else {
+						if (oUserInfo.length > 0) {
+							oUserInfo.hide();
+						}
+						if (oNewDownloadBtn.length > 0) {
+							oNewDownloadBtn.hide();
+						}
+					}
+				} else {
+					oSider.css({
+						position: 'relative',
+						top: 0,
+						right: 0,
+						left: 'auto',
+						marginTop: 0
+					});
+					if (oUserInfo.length > 0) {
+						oUserInfo.show();
+					}
+					if (oNewDownloadBtn.length > 0) {
+						oNewDownloadBtn.show();
+					}
+				}
+			} else if (f == 2) {
+				if (oUserInfo.length > 0) {
+					oUserInfo.hide();
+				}
+				if (oNewDownloadBtn.length > 0) {
+					oNewDownloadBtn.hide();
+				}
+				if (oSiderRight <= 0) {
+					oSider.css({
+						position: 'fixed',
+						top: 68,
+						right: oSiderRight * 2,
+						left: 'auto',
+						margin: 0
+					});
+				} else {
+					oSider.css({
+						position: 'fixed',
+						top: 68,
+						margin: 0,
+						left: 'auto'
+					});
+					oSiderRight = (jQuery(window).width() - pageWidth) / 2;
+					oSider.css({
+						right: oSiderRight
+					});
+				}
+				return;
+
+			} else if (f == 3) {
+				oSider.css({
+					position: 'relative',
+					top: 0,
+					right: 0,
+					left: 'auto',
+					marginTop: 0
+				});
+				return;
+			}
+		}
+
+		function relativeControl(){
+			if(!window.XMLHttpRequest){return;}
+			var st = jQuery(window).scrollTop();
+			cH = jQuery(window).height(),
+			posb = oFixControl.offset().top+oFixControl.height(),
+			sth = cH + st,
+			post = oFixControl.offset().top;
+			var oFixTop = oFixControl.offset().top,
+			oSiderTop =jQuery(".aside").offset().top;
+			if(st>=oSiderTop){
+				if(oFixControl.height()<=cH){
+					oFixControl.css({position:'fixed',top:80,bottom:'auto'});
+					return;
+				}
+				if(st>=sst){//向下
+					if(ft>=0){
+						//1、先判断右侧内容看到最后，即让他居底部定位
+						posb = oFixControl.offset().top+oFixControl.height();
+						if(posb<=sth){
+							oFixControl.css({position:'fixed',bottom:0,top:'auto'});
+							oFixTop = oFixControl.offset().top;
+							ftup = oFixTop - 140;
+						}
+						else{
+							oFixControl.css({position:'relative',bottom:'auto',top:ft});
+						}
+					}
+				}
+				else{//向上
+					if(ftup>=0){
+						if(oFixTop>=st){
+							oFixControl.css({position:'fixed',top:80,bottom:'auto'});
+							oFixTop = oFixControl.offset().top;
+							ft = oFixTop - 140;
+						}
+						else{
+							oFixControl.css({position:'relative',top:ftup,bottom:'auto'});
+						}
+						
+					}
+				}
+	
+			}
+			else{
+				oFixControl.css({position:'relative',top:0,bottom:'auto'});
+				ft = ftup = 0;
+			}
+			arrSt.push(st)
+			if (arrSt.length > 2) {arrSt.shift()}
+			sst = arrSt[0];
+		}
+
+		function setToolBarFix(f) {
+			if (!window.XMLHttpRequest) {
+				return;
+			}
+			var st = jQuery(window).scrollTop();
+			if (f == 1) {
+				if (st >= oBannerTop) {
+					oToolBar.css({
+						top: 0
+					});
+					if (_this.zoomFlag == 0) {
+						jQuery("#bookmarktips").css({
+							top: 68,
+							width: playerWidth - 2
+						});
+					} else {
+						jQuery("#bookmarktips").css({
+							top: 68,
+							width: 'auto'
+						});
+					}
+					return;
+				} else {
+					// setTimeout(function () {
+					// 	var tt1 = jQuery("#contentcontainer").offset().top - jQuery(".docin_reader_tools").offset().top;
+					// 	jQuery("#bookmarktips").css({
+					// 		top: tt1,
+					// 		width: playerWidth - 2
+					// 	});
+					// }, 200);
+					// oToolBar.css({
+					// 	top: oBannerTop - st
+					// });
+				}
+			} else if (f == 2) {
+				oToolBar.css({
+					top: 0
+				});
+				jQuery("#bookmarktips").css({
+					top: 68,
+					width: 'auto'
+				});
+				return;
+			}
+		}
+		window.setToolBarFix = setToolBarFix;
+		window.siderFixedMove = siderFixedMove;
+		_this.relativeControl = relativeControl;
+	},
+	pageScroll: function ($) {
+		var _this = this;
+		$.fn.scrollLoading = function (options) {
+			var defaults = {
+				attr: "data-url"
+			};
+			var params = $.extend({}, defaults, options || {});
+			params.cache = [];
+			$(this).each(function () {
+				var node = this.nodeName.toLowerCase(),
+					url = $(this).attr(params["attr"]);
+				//if (!url) { return; }
+				//重组
+				var data = {
+					obj: $(this),
+					tag: node,
+					url: url
+				};
+				params.cache.push(data);
+			});
+			var loading = function () {
+				var st = $(window).scrollTop(),
+					sth = st + $(window).height();
+				$.each(params.cache, function (i, data) {
+					var o = data.obj,
+						tag = data.tag,
+						url = data.url;
+					if (o) {
+
+						var post = o.offset().top,
+							posb = post + o.height();
+						// var a = _this.curPage == 1 && st == 0;
+						// var b = post <= st + 55 && posb >= st + 45;
+						var a = (post > st) && ((post - st) < $(window).height() / 2);
+						var b = (posb < sth) && ((posb - st) > $(window).height() / 2);
+						//console.log(b);
+						//console.log(post+":::"+st+":::"+posb);
+						//console.log(a+":::"+b);
+						if (a || b) {
+							var t = i + 1;
+							//ddd.push(t);
+							if (tag === "img") {
+								//图片，改变src
+								o.attr("src", url);
+							} else {
+								// o.load(url);	
+								if (log_preNum != t) {
+									log_preNum = t;
+									_this.addFlash(t);
+									if (typeof (isPDF) != 'undefined' && isPDF == 1) {
+										_this.clearFlash(t);
+									}
+									jQuery('.page_cur').val(t);
+									_this.curPage = t;
+									_this.pageButton(t);
+									_this.bookMarkShow(t);
+									if (_this.config.isBuy == 1) {
+										if (typeof fromWebSearch != "undefined" && _this.curPage == _this.config.allPage) {
+											fromWebSearch();
+										}
+									} else if (_this.config.isBuy == 0) {
+										if (typeof fromWebSearch != "undefined" && _this.curPage == _this.config.previewNum) {
+											fromWebSearch();
+										}
+									}
+								}
+
+							}
+							return false;
+						}
+					}
+				});
+				scrollFlag = true;
+			};
+			//事件触发
+			//加载完毕即执行
+			if (_this.curPage == 1 && _this.config.bookMark == 0) {
+				_this.addFlash(1);
+				// if(typeof(isPDF) != 'undefined' &&isPDF == 1){
+				// 	_this.clearFlash(1);
+				// } 
+
+			}
+			if (_this.curPage == readerConfig.previewNum && _this.config.isBuy == 2) {
+				_this.addFlash(_this.curPage);
+				if (typeof (isPDF) != 'undefined' && isPDF == 1) {
+					_this.clearFlash(_this.curPage);
+				}
+			}
+			//滚动执行
+			var loadTimer = null;
+			$(window).bind("scroll", function () {
+				if (_this.config.showStyle == 1) {
+					if (scrollFlag == true) {
+						scrollFlag = false;
+						loading();
+						// clearTimeout(loadTimer);
+						// loadTimer = setTimeout(function(){
+						// 	loading();
+						// },200);
+					}
+
+				}
+			});
+
+		};
+	}
+};
+var docinReader = new DocinReaderPlayer(readerConfig);
+(function () {
+	var oBtnShowAll = jQuery("#openAll"),
+		oInfoArea = jQuery(".user_doc_bd"),
+		oShowTxt = jQuery("#showTxt"),
+		oshowBtn = jQuery("#openAll .ico_arrow"),
+		oMoreDec = jQuery("#moreDec"),
+		oElipDec = jQuery("#elipDec"),
+		oModelArea = jQuery(".user_doc_mod");
+	var iTopicConfig = {};
+	var topicConfig = {
+		id: "j_topic",
+		cls: "topicDialog",
+		button: 1,
+		title: " ",
+		cancel: {
+			txt: "取消",
+			value: false
+		},
+		confirm: {
+			txt: "创建专题，我来当总编",
+			value: true
+		},
+		content: '<p>以下<span class="topicNum"></span>个专题都包含此篇文档</p><div id="topicListMod"></div>',
+		callBack: {
+			okBack: function () {
+				window.open("/topic/preaddtopic.do", "_blank");
+			}
+		}
+
+
+	};
+	if (oShowTxt.length > 0) {
+		oBtnShowAll.bind('click', function () {
+			if (jQuery(".user_doc_mod .inner").hasClass('innerShow')) {
+				closeMoreHandel();
+				oshowBtn.removeClass("ico_arrow_up");
+			} else {
+				jQuery(".user_doc_mod .inner").addClass('innerShow');
+				oShowTxt.html('收起');
+				oshowBtn.addClass("ico_arrow_up");
+				if (jQuery.isEmptyObject(iTopicConfig)) {
+					jQuery.ajax({
+						url: "/app/p/end/ajax/getDocDetailExtends?id=" + readerConfig.productId,
+						success: function (data) {
+							iData = JSON.parse(data);
+							iTopicConfig = iData;
+							if (iData.stats == "10010") {
+								if (iData.total == 0) {
+									return;
+								}
+								if (jQuery(".info_list").length > 0) {
+									jQuery('<dt>入选专题：</dt><dd><a id="openTopic" href="javascript:void(0);" onmousedown="return inpmv(5959)">' + iData.total + '</a>个</dd>').appendTo(jQuery(".info_list"));
+									jQuery("#openTopic").on("click", function () {
+										var topicDialog = new CreateDocinDialog(topicConfig);
+										doWidthData(iData);
+									});
+								}
+							}
+						}
+					});
+				} else {
+					doWidthData(iTopicConfig);
+				}
+			}
+		});
+
+		function closeMoreHandel() {
+			jQuery(".user_doc_mod .inner").removeClass('innerShow');
+			oShowTxt.html('详情');
+		}
+
+		function doWidthData(iData) {
+			jQuery("#j_topic .topicNum").html(iData.total);
+			if (iData.total <= 5) {
+				var oUl = jQuery('<ul class="topicList clear"></ul>').appendTo(jQuery("#topicListMod"));
+				var aItems = iData.items;
+				for (var i = 0; i < iData.items.length; i++) {
+					var iJing = aItems[i].if_fine ? ' <span title="精华专题" class="ico_jing"></span>' : '';
+					jQuery('<li><a href="https://www.docin.com/t-' + aItems[i].topic_id + '.html" target="_blank" title="' + aItems[i].topic_title + '">' + aItems[i].short_title + '</a>' + iJing + '</li>').appendTo(oUl);
+				}
+				jQuery(".topicList").show();
+				jQuery(".tabBtn .pre").addClass("default");
+				jQuery(".tabBtn .next").addClass("default");
+			} else {
+				var iTabIndex = 0;
+				var iPage = Math.ceil(iData.total / 5);
+				var aItems = iData.items;
+				for (var j = 0; j < iPage; j++) {
+					var oUl = jQuery('<ul id="t' + j + '" class="topicList"></ul>').appendTo(jQuery("#topicListMod"));
+					if (j == iPage - 1) {
+						var mol = iData.total % 5;
+						var t = mol ? j * 5 + mol : (j + 1) * 5;
+					} else {
+						var t = (j + 1) * 5;
+					}
+
+					for (var i = j * 5; i < t; i++) {
+						var iJing = aItems[i].if_fine ? ' <span title="精" class="ico_jing"></span>' : '';
+						jQuery('<li><a href="https://www.docin.com/t-' + aItems[i].topic_id + '.html" target="_blank" title="' + aItems[i].topic_title + '">' + aItems[i].short_title + '</a>' + iJing + '</li>').appendTo(oUl);
+					}
+
+				}
+				jQuery("#t" + iTabIndex).show();
+				jQuery('<div class="tabBtn"><a class="pre default" href="javascript:void(0);">&lt;</a><a class="next" href="javascript:void(0);">&gt;</a></div>').appendTo(jQuery("#topicListMod"));
+				jQuery(".tabBtn a.next").on("click", function () {
+					iTabIndex++;
+					setPageBtn();
+					if (iTabIndex >= iPage) {
+						iTabIndex = iPage - 1;
+						return;
+					}
+					jQuery(".topicList").hide();
+					jQuery("#t" + iTabIndex).show();
+				});
+				jQuery(".tabBtn a.pre").on("click", function () {
+					iTabIndex--;
+					setPageBtn();
+					if (iTabIndex < 0) {
+						iTabIndex = 0;
+						return;
+					}
+					jQuery(".topicList").hide();
+					jQuery("#t" + iTabIndex).show();
+				});
+
+				function setPageBtn() {
+					if (iTabIndex <= 0) {
+						jQuery(".tabBtn .pre").addClass("default");
+						jQuery(".tabBtn .next").removeClass("default");
+					} else if (iTabIndex >= iPage - 1) {
+						jQuery(".tabBtn .pre").removeClass("default");
+						jQuery(".tabBtn .next").addClass("default");
+					} else {
+						jQuery(".tabBtn .pre").removeClass("default");
+						jQuery(".tabBtn .next").removeClass("default");
+					}
+				}
+			}
+		}
+	} else {
+		if (oBtnShowAll.length > 0) {
+			oBtnShowAll.bind('click', function () {
+				if (jQuery(".user_doc_mod .inner").hasClass('innerShow')) {
+					closeMoreHandel();
+				} else {
+					jQuery(".user_doc_mod .inner").addClass('innerShow');
+					if (oMoreDec.length > 0) {
+						oElipDec.hide();
+						oMoreDec.show();
+					}
+					oBtnShowAll.html('收起');
+				}
+			});
+
+			function closeMoreHandel() {
+				jQuery(".user_doc_mod .inner").removeClass('innerShow');
+				if (oMoreDec.length > 0) {
+					oMoreDec.hide();
+					oElipDec.show();
+				}
+				oBtnShowAll.html('文档详情');
+			}
+		}
+	}
+})();
+
+function resizeRela() {
+	var cH = jQuery(window).height(); //屏幕高度
+	if (cH < 310) {
+		return false;
+	}
+	if (jQuery(".sider_guanggao").length > 0) {
+		var adHeight = jQuery(".sider_guanggao").height();
+	} else {
+		var adHeight = 0; //vip
+	}
+	if (jQuery(window).scrollTop() > docinReader.oSiderTop) {
+		//var activeHeight = cH - 56 - 145 -10;//相关文档高度
+		// var activeHeight = cH - adHeight -56;
+		// if(relateDocH > activeHeight){
+		// 	jQuery(".relative_doc_inner").css({height:activeHeight-2});
+		// }
+		// else{
+		// 	jQuery(".relative_doc_inner").css({height:'auto'});
+		// }
+		resizeRelaHeight();
+	} else {
+		initRelaHeight();
+	}
+}
+
+function initRelaHeight() {
+	jQuery('.relative_hot_class_mod').show();
+	var cH = jQuery(window).height();
+	if (cH < 310) {
+		return false;
+	}
+	var initActiveHeight = cH - oRelaTop;
+	if (jQuery(".relative_bd .list_item").length > 0) {
+		var oItemHeight = jQuery(".relative_bd .list_item").eq(1).outerHeight();
+		var showNum = Math.floor((initActiveHeight - 50 - jQuery(".relative_bd .list_item .item_show").outerHeight()) / oItemHeight);
+		initActiveHeight = showNum * oItemHeight + 50 + jQuery(".relative_bd .list_item .item_show").outerHeight();
+	}
+	if (relateDocH > initActiveHeight) {
+		if (relateDocH < (jQuery(".relative_bd .list_item").eq(1).outerHeight() * 2 + jQuery(".relative_bd .list_item .item_show").outerHeight())) {
+			var iH = jQuery(".relative_bd .list_item").eq(1).outerHeight() * 2 + jQuery(".relative_bd .list_item .item_show").outerHeight();
+			jQuery('.relative_doc_inner').length == 1 ? jQuery('.relative_doc_inner').css({
+				height: iH
+			}) : jQuery('.relative_doc_inner').eq(1).css({
+				height: iH
+			});
+		} else {
+			jQuery('.relative_doc_inner').length == 1 ? jQuery('.relative_doc_inner').css({
+				height: initActiveHeight - 2
+			}) : jQuery('.relative_doc_inner').eq(1).css({
+				height: initActiveHeight - 2
+			});
+		}
+	} else {
+		jQuery('.relative_doc_inner').length == 1 ? jQuery('.relative_doc_inner').css({
+			height: 'auto'
+		}) : jQuery('.relative_doc_inner').eq(1).css({
+			height: 'auto'
+		});
+	}
+}
+
+function resizeRelaHeight() {
+	jQuery('.relative_hot_class_mod').hide();
+	var cH = jQuery(window).height();
+	if (cH < 310) {
+		return;
+	}
+	if (jQuery(".sider_guanggao").length > 0) {
+		var adHeight = jQuery(".sider_guanggao").height();
+	} else {
+		var adHeight = 0; //vip
+	}
+	if (jQuery(".spread_mod").length > 0) {
+		var spreadHeight = jQuery(".spread_mod").height() + 10;
+	} else {
+		var spreadHeight = 0;
+	}
+	var activeHeight = cH - adHeight - 68 - spreadHeight;
+	if (jQuery(".relative_bd .list_item").length > 0) {
+		var oItemHeight = jQuery(".relative_bd .list_item").eq(1).outerHeight();
+		var showNum = Math.floor((activeHeight - 50 - jQuery(".relative_bd .list_item .item_show").outerHeight()) / oItemHeight);
+		activeHeight = showNum * oItemHeight + 50 + jQuery(".relative_bd .list_item .item_show").outerHeight();
+	}
+	if (relateDocH > activeHeight) {
+		if (relateDocH < (jQuery(".relative_bd .list_item").eq(1).outerHeight() * 2 + jQuery(".relative_bd .list_item .item_show").outerHeight())) {
+			var iH = jQuery(".relative_bd .list_item").eq(1).outerHeight() * 2 + jQuery(".relative_bd .list_item .item_show").outerHeight();
+			jQuery('.relative_doc_inner').length == 1 ? jQuery('.relative_doc_inner').css({
+				height: iH
+			}) : jQuery('.relative_doc_inner').eq(1).css({
+				height: iH
+			});
+		} else {
+			jQuery('.relative_doc_inner').length == 1 ? jQuery('.relative_doc_inner').css({
+				height: activeHeight - 2
+			}) : jQuery('.relative_doc_inner').eq(1).css({
+				height: activeHeight - 2
+			});
+		}
+	} else {
+		jQuery('.relative_doc_inner').length == 1 ? jQuery('.relative_doc_inner').css({
+			height: 'auto'
+		}) : jQuery('.relative_doc_inner').eq(1).css({
+			height: 'auto'
+		});
+	}
+}
+
+function hideOtherSelected() {
+	var aFlash = document.getElementById('contentcontainer').getElementsByTagName('object');
+	for (var i = 0; i < aFlash.length; i++) {
+		aFlash[i].hideSelected();
+	}
+}
+
+function likeTooModControl(f) {
+	if (f == 1) {
+		if (jQuery('#jControlDiv').length > 0) {
+			jQuery('#jControlDiv').show();
+		} else if (jQuery("#likeToo").length > 0) {
+			jQuery("#likeToo").show();
+		}
+	} else if (f == 2) {
+		if (jQuery('#jControlDiv').length > 0) {
+			jQuery('#jControlDiv').hide();
+		} else if (jQuery("#likeToo").length > 0) {
+			jQuery("#likeToo").hide();
+		}
+	}
+}
+
+function controlLeftBottomAdv(f) {
+	if (jQuery(".left_buttom_adv").length == 0) {
+		return;
+	}
+	if (f == 1) {
+		jQuery(".left_buttom_adv").show();
+	} else if (f == 2) {
+		jQuery(".left_buttom_adv").hide();
+	}
+}
+
+function hideTips(id) {
+	clearTimeout(setTimer);
+	setTimer = setTimeout(function () {
+		jQuery("#" + id).fadeOut();
+		jQuery("#" + id).remove();
+	}, 1000);
+}
+//是否有权限复制
+function isAuthForCopy() {
+	if (typeof readerConfig.isBD == "undefined") {
+		return 0;
+	}
+	if (readerConfig.isBD == 0) {
+		if (readerConfig.isLogin == 0) { //未登录
+			//放个cookie
+			var cook = new CookieClass();
+			cook.expires = 1;
+			cook.domain = ".docin.com";
+			cook.path = "/";
+			cook.setCookie("can_copy_alert", "1");
+			changeCookieValue(cook, "can_copy_alert", 1);
+
+			return 0;
+		} else if (readerConfig.showAd == true) {
+			createCopyVipAlert()
+			return 0;
+		} else if (readerConfig.showAd == false) {
+			return 1;
+		}
+	}
+	return 1;
+}
+
+function createCopyVipAlert() {
+	var tipText = '';
+	var vipHref = '';
+	var ipv = 0;
+	if (readerConfig.isdocstore != undefined && readerConfig.isdocstore == 1) {
+		vipHref = 'https://docstore.docin.com/jsp_cn/my/fin/tool_vip/get_tool_vip.jsp?vipfrom=end';
+		ipv = 6428;
+		tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通会员 享复制功能</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享10项特权</span> 低至 <span style="color:#f8692a;">0.5元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-downQuan"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载收费文档<br>赠专用券</p></div><div class="need-vip-tips-mt-print"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">打印文档<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通会员 享尊贵权益"><span style="color:#fff;">点击开通会员 享尊贵权益</span></a></div>';
+	} else if (typeof (isBuilding) != "undefined" && isBuilding == 1) {
+		ipv = 6427;
+		vipHref = 'https://www.docin.com/jsp_cn/my/fin/build_vip/get_build_vip.jsp?pid=null&vip_type=12&vipfrom=end';
+		tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通会员 享复制功能</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享10项特权</span> 低至 <span style="color:#f8692a;">0.5元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-downQuan"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载收费文档<br>赠专用券</p></div><div class="need-vip-tips-mt-print"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">打印文档<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通会员 享尊贵权益"><span style="color:#fff;">点击开通会员 享尊贵权益</span></a></div>';
+	} else {
+		ipv = 7098;
+		vipHref = 'https://www.docin.com/app/jump_adv/pay_vip.do?channelid=0313&buyFrom=4';
+		tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通VIP 享复制功能</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享7项特权</span> 低至 <span style="color:#f8692a;">0.3元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-convert"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">文档转换<br></p></div><div class="need-vip-tips-mt-kefu"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">专属客服<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通VIP 享尊贵权益"><span style="color:#fff;">点击开通VIP 享尊贵权益</span></a></div>';
+	}
+	var openVipAlert = new CreateDocinDialog({
+		id: "openVipTips",
+		cls: "need-vip-tips",
+		title: " ",
+		content: tipText,
+		button: 2,
+	});
+}
+
+function checkCookie_vip() { //广告
+	var cook = new CookieClass();
+	var remindClickId = cook.getCookie("vip_alert_adv");
+	if (remindClickId == "1" && tmp_userId > 0 && isAdvShow == "true") { //不是vip，显示弹层
+		var tipText = '';
+		var vipHref = '';
+		var ipv = 0;
+		if (readerConfig.isdocstore != undefined && readerConfig.isdocstore == 1) {
+			vipHref = 'https://docstore.docin.com/jsp_cn/my/fin/tool_vip/get_tool_vip.jsp';
+			ipv = 6428;
+			tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通会员 享文档页零广告</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享10项特权</span> 低至 <span style="color:#f8692a;">0.5元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-convert"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">文档转换<br></p></div><div class="need-vip-tips-mt-kefu"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">专属客服<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通会员 享尊贵权益"><span style="color:#fff;">点击开通会员 享尊贵权益</span></a></div>';
+		} else if (typeof (isBuilding) != "undefined" && isBuilding == 1) {
+			vipHref = 'https://www.docin.com/jsp_cn/my/fin/build_vip/get_build_vip.jsp?pid=null&vip_type=12&vipfrom=end';
+			ipv = 6427;
+			tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通会员 享文档页零广告</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享10项特权</span> 低至 <span style="color:#f8692a;">0.5元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-convert"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">文档转换<br></p></div><div class="need-vip-tips-mt-kefu"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">专属客服<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通会员 享尊贵权益"><span style="color:#fff;">点击开通会员 享尊贵权益</span></a></div>';
+		} else {
+			ipv = 7098;
+			vipHref = 'https://www.docin.com/app/jump_adv/pay_vip.do?channelid=0313&buyFrom=2';
+			tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通VIP 享文档页零广告</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享7项特权</span> 低至 <span style="color:#f8692a;">0.3元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-convert"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">文档转换<br></p></div><div class="need-vip-tips-mt-kefu"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">专属客服<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通VIP 享尊贵权益"><span style="color:#fff;">点击开通VIP 享尊贵权益</span></a></div>';
+		}
+		var openVipAlert = new CreateDocinDialog({
+			id: "openVipTips",
+			cls: "need-vip-tips",
+			title: " ",
+			content: tipText,
+			button: 2,
+		});
+	}
+
+	cook.expires = 1;
+	cook.domain = ".docin.com";
+	cook.path = "/";
+	cook.setCookie("vip_alert_adv", -1);
+}
+
+function checkCookie_copy() { //复制
+	var cook = new CookieClass();
+	var remindClickId = cook.getCookie("can_copy_alert");
+	if (remindClickId == "1" && tmp_userId > 0 && isAdvShow == "true") { //不是vip，显示弹层
+		var tipText = '';
+		var vipHref = '';
+		var ipv = 0;
+		if (readerConfig.isdocstore != undefined && readerConfig.isdocstore == 1) {
+			vipHref = 'https://docstore.docin.com/jsp_cn/my/fin/tool_vip/get_tool_vip.jsp?vipfrom=end';
+			ipv = 6428;
+			tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通会员 享复制功能</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享10项特权</span> 低至 <span style="color:#f8692a;">0.5元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-downQuan"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载收费文档<br>赠专用券</p></div><div class="need-vip-tips-mt-print"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">打印文档<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通企业工具会员"><span style="color:#fff;">点击开通会员 享尊贵权益</span></a></div>';
+		} else if (typeof (isBuilding) != "undefined" && isBuilding == 1) {
+			ipv = 6427;
+			vipHref = 'https://www.docin.com/jsp_cn/my/fin/build_vip/get_build_vip.jsp?pid=null&vip_type=12&vipfrom=end';
+			tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通会员 享复制功能</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享10项特权</span> 低至 <span style="color:#f8692a;">0.5元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-downQuan"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载收费文档<br>赠专用券</p></div><div class="need-vip-tips-mt-print"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">打印文档<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通建筑会员"><span style="color:#fff;">点击开通会员 享尊贵权益</span></a></div>';
+		} else {
+			ipv = 7098;
+			vipHref = 'https://www.docin.com/app/jump_adv/pay_vip.do?channelid=0313&buyFrom=4';
+			tipText = '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通VIP 享复制功能</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享7项特权</span> 低至 <span style="color:#f8692a;">0.3元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-convert"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">文档转换<br></p></div><div class="need-vip-tips-mt-kefu"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">专属客服<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="' + vipHref + '" onmousedown="inpmv('+ipv+')" target="_blank" title="点击开通VIP 享尊贵权益"><span style="color:#fff;">点击开通VIP 享尊贵权益</span></a></div>';
+		}
+		var openVipAlert = new CreateDocinDialog({
+			id: "openVipTips",
+			cls: "need-vip-tips",
+			title: " ",
+			content: tipText,
+			button: 2,
+		});
+	}
+	cook.expires = 1;
+	cook.domain = ".docin.com";
+	cook.path = "/";
+	cook.setCookie("can_copy_alert", -1);
+}
+checkCookie_vip();
+checkCookie_copy();
+
+function flashChecker() {
+	var hasFlash = 0; //是否安装了flash
+	var flashVersion = 0; //flash版本
+
+	if (document.all) {
+		var swf = new ActiveXObject('ShockwaveFlash.ShockwaveFlash');
+		if (swf) {
+			hasFlash = 1;
+			VSwf = swf.GetVariable("$version");
+			flashVersion = parseInt(VSwf.split(" ")[1].split(",")[0]);
+		}
+	} else {
+		if (navigator.plugins && navigator.plugins.length > 0) {
+			var swf = navigator.plugins["Shockwave Flash"];
+			if (swf) {
+
+				hasFlash = 1;
+				var words = swf.description.split(" ");
+
+				for (var i = 0; i < words.length; ++i) {
+					if (isNaN(parseInt(words[i]))) continue;
+					flashVersion = parseInt(words[i]);
+				}
+			}
+		}
+	}
+	return {
+		f: hasFlash,
+		v: flashVersion
+	};
+}
+/* 加入组合文档 */
+function addComDocs(obj, bs) {
+
+	var bn = jQuery(obj).hasClass('addcomdocs-on');
+
+	if (bn) {
+
+		var productId = readerConfig.productId,
+			pageCur = jQuery(obj).parent('.model').index() + 1;
+
+		jQuery.ajax({
+			type: 'GET',
+			url: "/p/end/ajax/addUserComDocProduct.do?pid=" + productId + "&page=" + pageCur,
+			/**
+			 *	-1:用户未登陆，失败
+			 *  -2:参数错误，失败
+			 *  -3:文档不存在,失败
+			 *  -4:传来的页码范围超出改文档最大页码 失败
+			 *  -5:文档不允许添加到组合文档，失败
+			 *  -6:数据异常，失败
+			 *  -7:个数已经达到上限，失败
+			 *  -8：已经添加过在列表中了，失败
+			 *  正数:成功，返回值为添加后组合列表个数
+			 *  -10：非vip用户不能操作
+			 */
+			success: function (data) {
+				if (data > 0) {
+					comDocsAnimate(data);
+					comdocsConf.zhPages += ',' + pageCur + '';
+					comdocsConf.zhtotal++;
+				} else {
+					if (data == -8) {
+						comDocsAnimate();
+					} else if (data == -7) {
+						comDocsUpNum();
+					} else if (data == -6) {
+						alert('数据异常，失败');
+					} else if (data == -5) {
+						alert('文档不允许添加到组合文档，失败');
+					} else if (data == -4) {
+						alert('传来的页码范围超出改文档最大页码');
+					} else if (data == -3) {
+						alert('文档不存在,失败');
+					} else if (data == -2) {
+						alert('参数错误，失败');
+					} else if (data == -1) {
+						alert('用户未登陆，失败');
+					} else if (data == -10) {
+						var openVipAlert = new CreateDocinDialog({
+							id: "openVipTips",
+							cls: "need-vip-tips",
+							title: " ",
+							content: '<div class="need-vip-tips-t"><span class="need-vip-tips-tt">开通VIP 享组合文档功能</span><span class="need-vip-tips-tb">现在开通<span style="color:#f8692a;">享7项特权</span> 低至 <span style="color:#f8692a;">0.3元/天</span></span></div><div class="need-vip-tips-mt"><div class="need-vip-tips-mt-noads"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">阅读文档页<br>零广告</p></div><div class="need-vip-tips-mt-down"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">下载非收费文档<br>100篇/天</p></div><div class="need-vip-tips-mt-convert"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">文档转换<br></p></div><div class="need-vip-tips-mt-kefu"><div class="need-vip-tips-mt-bg"></div><p class="need-vip-tips-mt-text">专属客服<br></p></div></div><div class="need-vip-tips-mb"><a style="text-decoration:none;" href="/app/jump_adv/pay_vip.do" target="_blank" title="点击开通VIP 享尊贵权益"><span style="color:#fff;">点击开通VIP 享尊贵权益</span></a></div>',
+							button: 2,
+						});
+					} else {
+						//alert('失败,请重试');
+					}
+				}
+				return inpmv(5741);
+			},
+			error: function () {
+				//alert('失败,请重试');
+			}
+		});
+	}
+
+	function comDocsAnimate(comDocsNum) {
+
+		var anmTipsH = 48;
+
+		if (readerConfig.showStyle == 2) { //1：竖版 2：横版
+			anmTipsH = 26;
+		}
+		var sid = "";
+		if (typeof (readerConfig.flash_param_hzq) != "undefined") {
+			sid = readerConfig.flash_param_hzq;
+		}
+
+		var imgUrl = 'http://221.122.117.73/docinpic.jsp?sid=' + sid + '&file=' + productId + '&width=40&pageno=' + pageCur;
+
+		var pointL = jQuery('#j_comdoc').offset().left - jQuery(obj).offset().left,
+			pointT = jQuery('#j_comdoc').offset().top - jQuery(obj).offset().top + 5;
+
+		if (jQuery(obj).children('.anmt-tips').length == 0) {
+			jQuery(obj).html(
+				jQuery(obj).html() + '<div class="anmt-tips"></div'
+			);
+			jQuery(obj).find('.anmt-tips').css({
+				'height': anmTipsH,
+				'background-image': 'url(' + imgUrl + ')'
+			});
+		}
+
+		jQuery(obj).children('.anmt-tips')
+			.animate({
+				top: 60,
+				left: '-50'
+			}, 'slow')
+			.animate({
+				top: pointT,
+				left: pointL,
+				opacity: .5
+			}, 'normal', "swing", function () {
+				jQuery(this).remove();
+				jQuery(obj).attr('title', '');
+				jQuery(obj).removeClass('addcomdocs-on').addClass('addcomdocs-off').children('p').html('已加入');
+				if (jQuery('#comdoc_num').length == 0) {
+					jQuery('.comdoc_btn_wrap').html(jQuery('.comdoc_btn_wrap').html() + '<em class="comdoc_num" id="comdoc_num"></em>');
+				}
+				if (jQuery('#comdoc_num').text() > 98) {
+					jQuery('#comdoc_num').text('...');
+				} else if (jQuery('#comdoc_num').text() < 99) {
+					jQuery('#comdoc_num').text(comDocsNum);
+				}
+			});
+	}
+
+	function comDocsUpNum() {
+		var comDocsUpNum = new CreateDocinDialog({
+			id: "comDocsUpNum",
+			cls: "comDocsUpNum",
+			title: " ",
+			content: '<div style="padding:14px 36px 0 50px;"><p style="font-size:14px;font-weight:bold;line-height:28px;">抱歉，无法进行添加，组合文档最多为50页。建议您先在<a class="dialog_closed_by_link" href="/jsp_cn/productEnd/end_new_v1/doc_end_com_v1.jsp" target="_blank" title="我的组合" style="margin:0 3px;">我的组合</a>中进行数据的整理后，再进行新组合文档的添加。</p><p style="padding:28px 0 24px 79px;"><a class="dialog_closed_by_link verifyBtn" style="margin:0;" href="/jsp_cn/productEnd/end_new_v1/doc_end_com_v1.jsp" target="_blank" title="查看我的组合">查看我的组合</a></p></div>',
+			button: 2,
+			callBack: {
+				okBack: function () {
+					comDocsUpNum = null;
+					return true;
+				},
+				noBack: function () {
+					comDocsUpNum = null;
+					return false;
+				}
+			}
+		});
+	}
+}
+jQuery(function () {
+	function openLinkPara() {
+		var curObjHeight = 0;
+		var curObjWidth = 0;
+		var iX = 0;
+		var iY = 0;
+		var lemmaTimer = null;
+		//jQuery("div[id^='page_']").on("mouseleave",'a',function(){
+		//clearTimeout(lemmaTimer);
+		//lemmaTimer = setTimeout(function(){
+		//	hideLemmaLayout();
+		//},1000);
+		//});
+
+		jQuery("div[id^='page_']").on("click", "a", function (event) {
+			event.stopPropagation();
+			var curTag = event.currentTarget;
+			//var iParama = jQuery(this).data("params"),
+			//	iLemmaId = jQuery(this).data("lemmaid");
+			//var iURL = 'http://192.168.2.56/admin/api/lemmas/'+iLemmaId;
+			var iURL = jQuery(this).data("url");
+			iX = jQuery(this).offset().left;
+			iY = jQuery(this).offset().top;
+			curObjHeight = curTag.getBoundingClientRect().height;
+			curObjWidth = curTag.getBoundingClientRect().width;
+			var pendingRequests = {};
+			jQuery.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+				var key = options.url;
+				console.log(key);
+				if (!pendingRequests[key]) {
+					pendingRequests[key] = jqXHR;
+				} else {
+					//jqXHR.abort();    //放弃后触发的提交
+					pendingRequests[key].abort(); // 放弃先触发的提交
+				}
+
+				var complete = options.complete;
+				options.complete = function (jqXHR, textStatus) {
+					pendingRequests[key] = null;
+					if (jQuery.isFunction(complete)) {
+						complete.apply(this, arguments);
+					}
+				};
+			});
+			jQuery.ajax({
+				type: 'GET',
+				url: iURL,
+				//data:iParama + new Date().getTime(),
+				beforeSend: function () { //触发ajax请求开始时执行
+					createLemmaLayout();
+				},
+				success: function (data) {
+					var iData = data;
+					if (iData != null && iData.status == "ok") {
+						createLemmaData(iData.content);
+						//getCurLinkPosition(curTag,iX,iY);
+					}
+				},
+				error: function (jqXHR, textStatus, errorThrown) {
+					if (errorThrown != 'abort') {
+						jQuery("#jLemmaLayout .inner .bd").html('<p style="text-align:center;height:100px;line-height:100px;">网络繁忙，请稍后再试...</p>');
+					}
+
+					//alert(jqXHR +','+textStatus + ','+errorThrown )
+				}
+			});
+			getCurLinkPosition(curTag, iX, iY);
+			return false;
+		});
+
+		function hideLemmaLayout() {
+			if (jQuery("#jLemmaLayout").length > 0) {
+				jQuery("#jLemmaLayout").fadeOut();
+				jQuery("#jLemmaLayout").remove();
+			}
+		}
+
+		function createLemmaLayout(curObj) {
+			//clearTimeout(lemmaTimer);
+			hideLemmaLayout();
+			var oLemmaLayout = "";
+			oLemmaLayout += '<div id="jLemmaLayout" class="doc_entries_layout"><div class="inner"><div class="hd">';
+			oLemmaLayout += '豆丁词条<span class="doc_entries_close">关闭</span></div>';
+			oLemmaLayout += '<div class="bd"><p style="height:100px;background:url(' + picture_image_path_v1 + '/images_cn/newDocin/loading.gif) center center no-repeat;"></p></div>';
+			oLemmaLayout += '</div></div>';
+			jQuery("body").append(jQuery(oLemmaLayout));
+			jQuery(".doc_entries_close").click(function () {
+				clearTimeout(lemmaTimer);
+				hideLemmaLayout();
+			});
+			//jQuery("#jLemmaLayout").on("mouseenter",function(){
+			//	clearTimeout(lemmaTimer);
+			//});
+			//jQuery("#jLemmaLayout").on("mouseleave",function(){
+			//	clearTimeout(lemmaTimer);
+			//	lemmaTimer = setTimeout(function(){
+			//		hideLemmaLayout();
+			//	},500);
+
+			//});
+		}
+
+		function createLemmaData(iValue) {
+			var lemmaVaule = iValue;
+			var oLemmaStr = "";
+			var lemmaTitle = lemmaVaule.title,
+				lemmaDesc = subStrTitle(lemmaVaule.content, 180, 2),
+				lemmaFrom = lemmaVaule.origin,
+				lemmaLink = lemmaVaule.links,
+				lemmaFromLink = lemmaVaule.origin_url == "" ? "" : '<a target="_blank" href="' + lemmaVaule.origin_url + '">查阅百科</a>';
+			var aLinkStr = aLinkUrl = "";
+			if (lemmaLink.length > 0) {
+				var linkCss = "ico_min_link";
+				for (var i = 0; i < lemmaLink.length; i++) {
+					var linkType = lemmaLink[i].type,
+						linkTitle = subStrTitle(lemmaLink[i].title, 40, 1),
+						linkHref = lemmaLink[i].url,
+						linkOrigin = lemmaLink[i].origin != "" ? '<i class="link_source">- ' + lemmaLink[i].origin + '</i>' : "";
+					if (linkType == "文档") {
+						linkCss = "ico_min_doc";
+						linkTitle += '.' + lemmaLink[i].format;
+					} else if (linkType == "链接") {
+						linkCss = "ico_min_link";
+					} else if (linkType == "视频") {
+						linkCss = "ico_min_video";
+					}
+					aLinkStr += '<li><span class="ico_min_entries ' + linkCss + '"></span><a class="doc_tit" href="' + linkHref + '" target="_blank">' + linkTitle + '</a>' + linkOrigin + '</li>'
+				}
+				aLinkUrl = "<ul>" + aLinkStr + "</ul>";
+			}
+
+			oLemmaStr += '<h3>' + lemmaTitle + '</h3><div class="doc_entries_scroll">';
+			oLemmaStr += '<p class="entries_desc"><span>' + lemmaDesc + '</span>' + lemmaFromLink + '</p>';
+			oLemmaStr += aLinkUrl + '</div>';
+			//alert(oLemmaStr);
+			if (jQuery("#jLemmaLayout .inner .bd").length > 0) {
+				jQuery("#jLemmaLayout .inner .bd").html(oLemmaStr);
+			}
+		}
+
+		function getCurLinkPosition(obj, iX, iY) {
+			var oClientHeight = jQuery(window).height(),
+				oClientWidth = jQuery(window).width();
+			var rectObject = obj.getBoundingClientRect();
+			var iTop = rectObject.top,
+				iLeft = rectObject.left;
+			var iBottom = oClientHeight - rectObject.bottom;
+			var iRight = oClientWidth - rectObject.right;
+			var topFlag = iTop > iBottom + 20 ? 1 : 2;
+			var leftFlag = iLeft > iRight ? 1 : 2;
+			setPosition('jLemmaLayout', iX, iY, topFlag, leftFlag);
+		}
+
+		function setPosition(id, x, y, t, l) {
+			var oLemmaLayout = jQuery("#" + id);
+			if (oLemmaLayout.length == 0) {
+				return;
+			}
+			var iWidth = oLemmaLayout.width(),
+				iHeight = oLemmaLayout.height();
+			oLemmaLayout.css('position', 'absolute');
+			if (t == 3) { //1：上 
+				var iTop1 = y - iHeight - 10;
+				oLemmaLayout.css({
+					"top": iTop1 + "px"
+				});
+			} else if (t == 2 || t == 1) { //2：下
+				oLemmaLayout.css({
+					"top": y + curObjHeight + "px"
+				});
+			}
+			if (l == 1) { //1：左
+				oLemmaLayout.css({
+					"left": x - iWidth + curObjWidth + "px"
+				});
+			} else if (l == 2) { //1：右
+				oLemmaLayout.css({
+					"left": x + "px"
+				});
+			}
+		}
+
+		function subStrTitle(str, len, pos) {
+			/**参数说明： 
+			 * 根据长度截取先使用字符串，超长部分追加… 
+			 * str 对象字符串 
+			 * len 目标字节长度
+			 * pos 省略号位置 1:中间 2：文末
+			 * 返回值： 处理结果字符串 
+			 */
+			var iStr = str; //标题
+			var totalLen = countStrLength(iStr);
+			var temp1 = temp2 = "";
+			if (totalLen <= len) {
+				return str;
+			} else {
+				if (pos != undefined && pos == 1) {
+					temp1 = cutStr(iStr, 30);
+					temp2 = cutLastStr(iStr);
+					return temp1 + "..." + temp2;
+				} else if (pos != undefined && pos == 2) {
+					return cutStr(iStr, len) + "..";
+				}
+
+			}
+
+			function countStrLength(str) {
+				var sTemp = "";
+				var sLen = 0;
+				for (var i = 0; i < str.length; i++) {
+					sTemp += str.charAt(i);
+					if (str.charCodeAt(i) >= 0 && str.charCodeAt(i) <= 128) {
+						sLen += 1;
+					} else {
+						sLen += 2;
+					}
+				}
+				return sLen;
+			}
+
+			function cutStr(str, needLength) {
+				var sTemp = "";
+				var sLen = 0;
+				for (var i = 0; i < str.length; i++) {
+					sTemp += str.charAt(i);
+					if (str.charCodeAt(i) >= 0 && str.charCodeAt(i) <= 256) {
+						sLen += 1;
+					} else {
+						sLen += 2;
+					}
+					if (sLen >= needLength) {
+						sTemp = str.substring(0, i + 1);
+						return sTemp;
+					}
+				}
+			}
+
+			function cutLastStr(str) {
+				if (totalLen > 40) {
+					var sTemp = "";
+					sTemp = str.substring(str.length - 5);
+					return sTemp;
+				}
+			}
+		}
+		jQuery(document).bind("click", function (e) {
+			if (jQuery('#jLemmaLayout').length == 0) return;
+			var _con = jQuery('#jLemmaLayout'); // 设置目标区域
+			//console.log(!_con.is(e.target));
+			//console.log(_con.has(e.target).length);
+			if (!_con.is(e.target) && _con.has(e.target).length === 0) {
+				jQuery('#jLemmaLayout').remove();
+			}
+		});
+	}
+	openLinkPara();
+});
+//mini nav for building report contract
+jQuery(function () {
+	/*文档分类*/
+	var docList = jQuery("#doc_list"),
+		doc_list_show = jQuery(".doc_list_show"),
+		//top_nav_items=jQuery("#top_nav_items"),
+		top_nav_items_class = jQuery(".top_nav_items"),
+		navMenuSkills = jQuery("#navMenuSkills1");
+	if (docList.length == 0 || top_nav_items_class.length == 0) {
+		return;
+	}
+	docList.on("mouseenter", function () {
+		docList.addClass("doc_list");
+		doc_list_show.show();
+	}).on("mouseleave", function () {
+		docList.removeClass("doc_list");
+		doc_list_show.hide();
+	});
+
+	doc_list_show.on("mouseenter", function () {
+		docList.addClass("doc_list");
+		doc_list_show.show();
+	}).on("mouseleave", function () {
+		docList.removeClass("doc_list");
+		doc_list_show.hide();
+	});
+
+	/*my_docin*/
+	top_nav_items_class.on("mouseenter", function () {
+		top_nav_items_class.addClass("top_nav_items_high");
+		navMenuSkills.show();
+	}).on("mouseleave", function () {
+		top_nav_items_class.removeClass("top_nav_items_high");
+		navMenuSkills.hide();
+	});
+
+	navMenuSkills.on("mouseenter", function () {
+		top_nav_items_class.addClass("top_nav_items_high");
+		navMenuSkills.show();
+	}).on("mouseleave", function () {
+		top_nav_items_class.removeClass("top_nav_items_high");
+		navMenuSkills.hide();
+	});
+});
